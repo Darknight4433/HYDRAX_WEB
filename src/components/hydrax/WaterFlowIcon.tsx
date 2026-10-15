@@ -41,7 +41,10 @@ export function ValveIcon({ open, size = 40 }: { open: boolean; size?: number })
         r="7"
         fill={open ? "var(--primary)" : "var(--muted)"}
         stroke={open ? "var(--primary)" : "var(--border)"}
-        style={{ transition: "all .4s ease", filter: open ? "drop-shadow(0 0 6px var(--primary))" : "none" }}
+        style={{
+          transition: "all .4s ease",
+          filter: open ? "drop-shadow(0 0 6px var(--primary))" : "none",
+        }}
       />
       <rect
         x="19"
@@ -50,7 +53,11 @@ export function ValveIcon({ open, size = 40 }: { open: boolean; size?: number })
         height="30"
         rx="1"
         fill={open ? "var(--accent)" : "var(--muted-foreground)"}
-        style={{ transformOrigin: "20px 20px", transform: `rotate(${open ? 0 : 90}deg)`, transition: "transform .5s ease" }}
+        style={{
+          transformOrigin: "20px 20px",
+          transform: `rotate(${open ? 0 : 90}deg)`,
+          transition: "transform .5s ease",
+        }}
       />
     </svg>
   );

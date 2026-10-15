@@ -10,12 +10,16 @@ import { Button } from "@/components/ui/button";
 import { alertTypeLabel, resolveAlert, severityColor, useHydrax } from "@/lib/hydrax-store";
 import type { AlertItem, AlertSeverity } from "@/lib/hydrax-types";
 import { exportCSV } from "@/lib/export";
+import { LiveSyncClock } from "@/components/hydrax/LiveSyncClock";
 
 export const Route = createFileRoute("/alerts")({
   head: () => ({
     meta: [
       { title: "Alerts · HYDRAX" },
-      { name: "description", content: "Realtime leak, anomaly and system alerts across the HYDRAX water network." },
+      {
+        name: "description",
+        content: "Realtime leak, anomaly and system alerts across the HYDRAX water network.",
+      },
     ],
   }),
   component: AlertsPage,
@@ -36,7 +40,8 @@ function AlertsPage() {
         title="Water system alerts"
         description="Leaks, valve failures, offline nodes and AI predictions. Resolve alerts once addressed on-site."
         actions={
-          <>
+          <div className="flex flex-wrap items-center gap-2">
+            <LiveSyncClock variant="pill" lastSyncTimestamp={data.nodes.testNode?.lastUpdate} />
             <div className="flex items-center gap-1 rounded-full border border-border/50 bg-white/5 p-1">
               <Filter className="ml-2 h-3.5 w-3.5 text-muted-foreground" />
               {severityFilters.map((s) => (
@@ -61,13 +66,13 @@ function AlertsPage() {
                     node: a.nodeId,
                     message: a.message,
                     resolved: a.resolved,
-                  }))
+                  })),
                 )
               }
             >
               Export CSV
             </Button>
-          </>
+          </div>
         }
       />
 
@@ -82,7 +87,11 @@ function AlertsPage() {
           </GlassCard>
         )}
         {active.map((a) => (
-          <AlertRow key={a.id} a={a} onResolve={() => resolveAlert(a.id).then(() => toast.success("Alert resolved"))} />
+          <AlertRow
+            key={a.id}
+            a={a}
+            onResolve={() => resolveAlert(a.id).then(() => toast.success("Alert resolved"))}
+          />
         ))}
       </div>
 
@@ -102,13 +111,23 @@ function AlertRow({ a, onResolve }: { a: AlertItem; onResolve?: () => void }) {
   return (
     <GlassCard className="!p-4">
       <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-4">
-        <div className={`grid h-10 w-10 place-items-center rounded-xl bg-white/5 ${severityColor(a.severity)}`}>
+        <div
+          className={`grid h-10 w-10 place-items-center rounded-xl bg-white/5 ${severityColor(a.severity)}`}
+        >
           <AlertTriangle className="h-5 w-5" />
         </div>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-semibold">{alertTypeLabel(a.type)}</span>
-            <StatusPill tone={a.severity === "high" || a.severity === "critical" ? "danger" : a.severity === "medium" ? "warning" : "info"}>
+            <StatusPill
+              tone={
+                a.severity === "high" || a.severity === "critical"
+                  ? "danger"
+                  : a.severity === "medium"
+                    ? "warning"
+                    : "info"
+              }
+            >
               {a.severity}
             </StatusPill>
             <span className="text-xs text-muted-foreground">
@@ -117,7 +136,8 @@ function AlertRow({ a, onResolve }: { a: AlertItem; onResolve?: () => void }) {
           </div>
           <div className="mt-1 truncate text-sm text-foreground/90">{a.message}</div>
           <div className="mt-1 text-xs text-muted-foreground">
-            Node · <span className="text-foreground/80">{a.nodeId}</span> · Suggested: {a.suggestion}
+            Node · <span className="text-foreground/80">{a.nodeId}</span> · Suggested:{" "}
+            {a.suggestion}
           </div>
         </div>
         <div>

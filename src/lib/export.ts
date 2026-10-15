@@ -22,10 +22,7 @@ export function exportPDF(title: string, sections: { heading: string; lines: str
     </head><body>
     <h1>${title}</h1><p>Generated ${new Date().toLocaleString()}</p><hr/>
     ${sections
-      .map(
-        (s) =>
-          `<h2>${s.heading}</h2>${s.lines.map((l) => `<p>${l}</p>`).join("")}`
-      )
+      .map((s) => `<h2>${s.heading}</h2>${s.lines.map((l) => `<p>${l}</p>`).join("")}`)
       .join("")}
     </body></html>`;
   const w = window.open("", "_blank");

@@ -6,13 +6,13 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { AppShell } from "@/components/hydrax/AppShell";
 
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
   return (
@@ -36,12 +36,9 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
-  useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -95,11 +92,29 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Overview · HYDRAX Dashboard" },
-      { name: "description", content: "Realtime overview of water flow, valve status, AI predictions and consumption across HYDRAX IoT nodes." },
-      { property: "og:description", content: "Realtime overview of water flow, valve status, AI predictions and consumption across HYDRAX IoT nodes." },
-      { name: "twitter:description", content: "Realtime overview of water flow, valve status, AI predictions and consumption across HYDRAX IoT nodes." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/7093ae16-a8e3-4b20-b239-783f52708a63/id-preview-5b6ac7f6--3798c42c-4b52-488d-a30f-b8547db90954.lovable.app-1783267846454.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/7093ae16-a8e3-4b20-b239-783f52708a63/id-preview-5b6ac7f6--3798c42c-4b52-488d-a30f-b8547db90954.lovable.app-1783267846454.png" },
+      {
+        name: "description",
+        content:
+          "Realtime overview of water flow, valve status, AI predictions and consumption across HYDRAX IoT nodes.",
+      },
+      {
+        property: "og:description",
+        content:
+          "Realtime overview of water flow, valve status, AI predictions and consumption across HYDRAX IoT nodes.",
+      },
+      {
+        name: "twitter:description",
+        content:
+          "Realtime overview of water flow, valve status, AI predictions and consumption across HYDRAX IoT nodes.",
+      },
+      {
+        property: "og:image",
+        content: "/favicon.ico",
+      },
+      {
+        name: "twitter:image",
+        content: "/favicon.ico",
+      },
     ],
     links: [
       {

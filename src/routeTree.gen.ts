@@ -9,49 +9,19 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ThresholdsRouteImport } from './routes/thresholds'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as NodesRouteImport } from './routes/nodes'
-import { Route as GraphsRouteImport } from './routes/graphs'
-import { Route as ControlRouteImport } from './routes/control'
-import { Route as AnalyticsRouteImport } from './routes/analytics'
-import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AlertsRouteImport } from './routes/alerts'
+import { Route as AnalyticsRouteImport } from './routes/analytics'
+import { Route as ControlRouteImport } from './routes/control'
+import { Route as GraphsRouteImport } from './routes/graphs'
+import { Route as NodesRouteImport } from './routes/nodes'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as ThresholdsRouteImport } from './routes/thresholds'
 
-const ThresholdsRoute = ThresholdsRouteImport.update({
-  id: '/thresholds',
-  path: '/thresholds',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const NodesRoute = NodesRouteImport.update({
-  id: '/nodes',
-  path: '/nodes',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GraphsRoute = GraphsRouteImport.update({
-  id: '/graphs',
-  path: '/graphs',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ControlRoute = ControlRouteImport.update({
-  id: '/control',
-  path: '/control',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AnalyticsRoute = AnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AlertsRoute = AlertsRouteImport.update({
@@ -59,9 +29,39 @@ const AlertsRoute = AlertsRouteImport.update({
   path: '/alerts',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AnalyticsRoute = AnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ControlRoute = ControlRouteImport.update({
+  id: '/control',
+  path: '/control',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GraphsRoute = GraphsRouteImport.update({
+  id: '/graphs',
+  path: '/graphs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NodesRoute = NodesRouteImport.update({
+  id: '/nodes',
+  path: '/nodes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ThresholdsRoute = ThresholdsRouteImport.update({
+  id: '/thresholds',
+  path: '/thresholds',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -149,53 +149,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/thresholds': {
-      id: '/thresholds'
-      path: '/thresholds'
-      fullPath: '/thresholds'
-      preLoaderRoute: typeof ThresholdsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/nodes': {
-      id: '/nodes'
-      path: '/nodes'
-      fullPath: '/nodes'
-      preLoaderRoute: typeof NodesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/graphs': {
-      id: '/graphs'
-      path: '/graphs'
-      fullPath: '/graphs'
-      preLoaderRoute: typeof GraphsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/control': {
-      id: '/control'
-      path: '/control'
-      fullPath: '/control'
-      preLoaderRoute: typeof ControlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/analytics': {
-      id: '/analytics'
-      path: '/analytics'
-      fullPath: '/analytics'
-      preLoaderRoute: typeof AnalyticsRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/alerts': {
@@ -205,11 +163,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AlertsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/analytics': {
+      id: '/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AnalyticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/control': {
+      id: '/control'
+      path: '/control'
+      fullPath: '/control'
+      preLoaderRoute: typeof ControlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/graphs': {
+      id: '/graphs'
+      path: '/graphs'
+      fullPath: '/graphs'
+      preLoaderRoute: typeof GraphsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nodes': {
+      id: '/nodes'
+      path: '/nodes'
+      fullPath: '/nodes'
+      preLoaderRoute: typeof NodesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/thresholds': {
+      id: '/thresholds'
+      path: '/thresholds'
+      fullPath: '/thresholds'
+      preLoaderRoute: typeof ThresholdsRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -229,3 +229,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

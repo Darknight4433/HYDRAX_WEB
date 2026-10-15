@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, MapPin, Radio, Search, Signal, Thermometer, Timer } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { Activity, Cpu, MapPin, Radio, Signal, Timer, Zap } from "lucide-react";
 import { GlassCard } from "@/components/hydrax/GlassCard";
 import { PageHeader } from "@/components/hydrax/PageHeader";
 import { StatusPill } from "@/components/hydrax/StatusPill";
@@ -9,12 +8,18 @@ import { ValveIcon, WaterFlowIcon } from "@/components/hydrax/WaterFlowIcon";
 import { useHydrax } from "@/lib/hydrax-store";
 import type { HydraxNode } from "@/lib/hydrax-types";
 import { formatDistanceToNowStrict } from "date-fns";
+import { LiveSyncClock } from "@/components/hydrax/LiveSyncClock";
+import { format12HourTime } from "@/lib/utils";
 
 export const Route = createFileRoute("/nodes")({
   head: () => ({
     meta: [
-      { title: "Live Nodes · HYDRAX" },
-      { name: "description", content: "Live status of every HYDRAX IoT node: flow, valve, threshold, signal and consumption." },
+      { title: "Device Telemetry & Node · HYDRAXX" },
+      {
+        name: "description",
+        content:
+          "Live telemetry and device status for Wemos D1 Mini testNode on HYDRAXX: flow rate, relay state, signal and consumption.",
+      },
     ],
   }),
   component: NodesPage,
@@ -22,123 +27,200 @@ export const Route = createFileRoute("/nodes")({
 
 function NodesPage() {
   const data = useHydrax();
-  const [q, setQ] = useState("");
-  const nodes = useMemo(
-    () =>
-      Object.values(data.nodes).filter((n) =>
-        (n.name + n.location + n.id).toLowerCase().includes(q.toLowerCase())
-      ),
-    [data.nodes, q]
-  );
+  const nodes = Object.values(data.nodes);
+  const primaryNode = data.nodes.testNode || nodes[0];
 
   return (
     <div>
       <PageHeader
-        eyebrow="Node telemetry"
-        title="Live node monitoring"
-        description="Every IoT node reports flow, valve state and threshold in realtime. Expand a card to inspect diagnostics."
+        eyebrow="Single Device Telemetry"
+        title="Hardware Node Monitoring"
+        description="Live telemetry stream from Wemos D1 Mini (/nodes/testNode). Reports flow sensor, relay state, Wi-Fi RSSI and volume."
         actions={
-          <div className="flex items-center gap-2 rounded-full border border-border/50 bg-white/5 px-3 py-1.5">
-            <Search className="h-3.5 w-3.5 text-muted-foreground" />
-            <input
-              placeholder="Search nodes"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              className="w-40 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-            />
+          <div className="flex flex-wrap items-center gap-2">
+            <LiveSyncClock variant="pill" lastSyncTimestamp={primaryNode?.lastUpdate} />
+            <StatusPill
+              tone={primaryNode?.online ? "success" : "danger"}
+              pulse={primaryNode?.online}
+            >
+              {primaryNode?.online ? "Online & Reporting" : "Offline / Stale"}
+            </StatusPill>
           </div>
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {nodes.map((n) => (
-          <NodeCard key={n.id} node={n} />
-        ))}
-        {nodes.length === 0 && (
-          <GlassCard className="md:col-span-2 xl:col-span-3 text-center text-muted-foreground">
-            No nodes match "{q}".
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Main Node Card */}
+        <div className="lg:col-span-2">{primaryNode && <NodeDetailCard node={primaryNode} />}</div>
+
+        {/* Hardware Wiring & Pinout Details */}
+        <div className="space-y-4">
+          <GlassCard>
+            <div className="flex items-center gap-2 text-primary">
+              <Cpu className="h-5 w-5" />
+              <div className="text-base font-semibold">Controller Specifications</div>
+            </div>
+            <div className="mt-4 space-y-2.5 text-xs text-muted-foreground">
+              <div className="flex justify-between py-1 border-b border-border/30">
+                <span>Microcontroller:</span>
+                <strong className="text-foreground">Wemos D1 Mini (ESP8266)</strong>
+              </div>
+              <div className="flex justify-between py-1 border-b border-border/30">
+                <span>Power Source:</span>
+                <strong className="text-foreground">USB 5V (USB-Powered)</strong>
+              </div>
+              <div className="flex justify-between py-1 border-b border-border/30">
+                <span>Flow Sensor Pin:</span>
+                <strong className="text-foreground">Pin D7 (GPIO 13)</strong>
+              </div>
+              <div className="flex justify-between py-1 border-b border-border/30">
+                <span>Relay Module Pin:</span>
+                <strong className="text-foreground">Pin D5 (GPIO 14)</strong>
+              </div>
+              <div className="flex justify-between py-1 border-b border-border/30">
+                <span>Push Button Pin:</span>
+                <strong className="text-foreground">Pin D3 (GPIO 0)</strong>
+              </div>
+              <div className="flex justify-between py-1">
+                <span>Database Path:</span>
+                <code className="text-foreground text-[11px]">/nodes/testNode</code>
+              </div>
+            </div>
           </GlassCard>
-        )}
+
+          <GlassCard>
+            <div className="flex items-center gap-2 text-accent">
+              <Zap className="h-5 w-5" />
+              <div className="text-base font-semibold">Hardware Sensors Status</div>
+            </div>
+            <div className="mt-3 space-y-2 text-xs text-muted-foreground">
+              <div className="rounded-lg bg-black/20 p-2.5">
+                <div className="text-foreground font-medium">Battery Level:</div>
+                <div className="text-[11px]">USB Powered — No battery sensor connected.</div>
+              </div>
+              <div className="rounded-lg bg-black/20 p-2.5">
+                <div className="text-foreground font-medium">Temperature:</div>
+                <div className="text-[11px]">No temperature sensor connected to Wemos.</div>
+              </div>
+              <div className="rounded-lg bg-black/20 p-2.5">
+                <div className="text-foreground font-medium">Leak Detection AI:</div>
+                <div className="text-[11px]">Awaiting local / cloud risk model evaluation.</div>
+              </div>
+            </div>
+          </GlassCard>
+        </div>
       </div>
     </div>
   );
 }
 
-function NodeCard({ node }: { node: HydraxNode }) {
-  const [open, setOpen] = useState(false);
+function NodeDetailCard({ node }: { node: HydraxNode }) {
+  const isOpen = node.valveState === "open";
+
   return (
-    <GlassCard className="!p-0">
-      <div className="p-5">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <WaterFlowIcon active={node.valveState !== "closed" && node.online} size={28} />
-              <div className="min-w-0">
-                <div className="truncate text-base font-semibold">{node.name}</div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <MapPin className="h-3 w-3" />
-                  <span className="truncate">{node.location}</span>
-                </div>
+    <GlassCard className="!p-0 overflow-hidden">
+      <div className="p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <WaterFlowIcon active={isOpen && node.online} size={36} />
+            <div>
+              <div className="text-xl font-bold text-foreground">{node.name}</div>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <MapPin className="h-3.5 w-3.5" />
+                <span>{node.location}</span>
+                <span>·</span>
+                <span>
+                  ID: <code className="text-foreground">{node.id}</code>
+                </span>
               </div>
             </div>
           </div>
-          <StatusPill tone={node.online ? "success" : "danger"} pulse>
-            {node.online ? "Online" : "Offline"}
+          <StatusPill tone={node.online ? "success" : "danger"} pulse={node.online}>
+            {node.online ? "Online & Synchronized" : "Offline / Stale"}
           </StatusPill>
         </div>
 
-        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-          <Metric label="Flow" value={`${node.flowRate.toFixed(1)}`} unit="L/m" />
-          <Metric label="Threshold" value={`${node.threshold}`} unit="L/m" />
-          <Metric label="Today" value={`${node.todayUsage}`} unit="L" />
+        {/* Primary Metrics Grid */}
+        <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Metric label="Flow Rate" value={`${node.flowRate.toFixed(2)}`} unit="L/min" />
+          <Metric label="Active Ceiling" value={`${node.threshold}`} unit="L/min" />
+          <Metric label="Today's Litres" value={`${node.todayUsage.toFixed(2)}`} unit="L" />
+          <Metric label="WiFi Quality" value={node.signal ? `${node.signal}%` : "—"} unit="" />
         </div>
 
-        <div className="mt-4 flex items-center justify-between rounded-xl border border-border/40 bg-black/20 p-3">
+        {/* Valve and Mode Panel */}
+        <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-2xl border border-border/40 bg-black/20 p-4">
           <div className="flex items-center gap-3">
-            <ValveIcon open={node.valveState !== "closed"} />
+            <ValveIcon open={isOpen} size={48} />
             <div>
-              <div className="text-xs text-muted-foreground">Valve</div>
-              <div className="text-sm font-semibold capitalize">{node.valveState}</div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                Relay Module (D5)
+              </div>
+              <div className="text-base font-bold capitalize text-foreground">
+                {node.valveState}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {isOpen ? "Energized (Pass Flow)" : "De-energized (Cut Flow)"}
+              </div>
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-xs text-muted-foreground">Mode</div>
-            <div className="text-sm font-semibold capitalize">
-              {node.manualOverride ? "Manual" : node.operatingMode}
+          <div className="flex items-center justify-between sm:justify-end gap-6 sm:border-l sm:border-border/30 sm:pl-6">
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                Operating Mode
+              </div>
+              <div className="text-base font-bold capitalize text-foreground">
+                {node.operatingMode}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {node.manualOverride ? "Manual Override Active" : "Automatic Control"}
+              </div>
             </div>
           </div>
         </div>
 
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className="mt-3 flex w-full items-center justify-between rounded-lg px-1 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-        >
-          <span>Diagnostics</span>
-          <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
-        </button>
-
-        <AnimatePresence initial={false}>
-          {open && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="overflow-hidden"
-            >
-              <div className="grid grid-cols-2 gap-2 pt-2 text-sm">
-                <Diag icon={<Signal className="h-3.5 w-3.5" />} label="Signal" value={`${node.signal.toFixed(0)}%`} />
-                <Diag icon={<Radio className="h-3.5 w-3.5" />} label="Battery" value={node.battery != null ? `${node.battery}%` : "—"} />
-                <Diag icon={<Thermometer className="h-3.5 w-3.5" />} label="Temp" value={node.temperature != null ? `${node.temperature}°C` : "—"} />
-                <Diag icon={<Timer className="h-3.5 w-3.5" />} label="Last update" value={formatDistanceToNowStrict(node.lastUpdate, { addSuffix: true })} />
-                <Diag label="Weekly" value={`${node.weeklyUsage.toLocaleString()} L`} />
-                <Diag label="Monthly" value={`${node.monthlyUsage.toLocaleString()} L`} />
-                <Diag label="Leak risk" value={`${(node.leakProbability * 100).toFixed(1)}%`} />
-                <Diag label="Manual override" value={node.manualOverride ? "Yes" : "No"} />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Telemetry Diagnostics Grid */}
+        <div className="mt-6">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-medium">
+            Field Diagnostics & Timestamps
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+            <Diag
+              icon={<Signal className="h-3.5 w-3.5" />}
+              label="Wi-Fi Signal"
+              value={node.signal ? `${node.signal}%` : "—"}
+            />
+            <Diag icon={<Radio className="h-3.5 w-3.5" />} label="Power" value="USB 5V (Board)" />
+            <Diag
+              icon={<Timer className="h-3.5 w-3.5" />}
+              label="Last Heartbeat"
+              value={
+                node.lastUpdate
+                  ? `${format12HourTime(node.lastUpdate, { includeSeconds: true })} (${formatDistanceToNowStrict(node.lastUpdate, { addSuffix: true })})`
+                  : "Never"
+              }
+            />
+            <Diag
+              label="Weekly Total"
+              value={node.weeklyUsage ? `${node.weeklyUsage.toFixed(1)} L` : "Awaiting data"}
+            />
+            <Diag
+              label="Monthly Total"
+              value={node.monthlyUsage ? `${node.monthlyUsage.toFixed(1)} L` : "Awaiting data"}
+            />
+            <Diag
+              label="Leak Probability"
+              value={
+                node.leakProbability != null
+                  ? `${(node.leakProbability * 100).toFixed(1)}%`
+                  : "Not configured"
+              }
+            />
+            <Diag label="Physical Button" value={node.buttonPressed ? "PRESSED (D3)" : "IDLE"} />
+            <Diag label="Uptime" value={node.uptimeSec ? formatUptime(node.uptimeSec) : "—"} />
+            <Diag label="Firmware" value={node.firmware || "HYDRAXX-v1.0"} />
+          </div>
+        </div>
       </div>
     </GlassCard>
   );
@@ -146,11 +228,11 @@ function NodeCard({ node }: { node: HydraxNode }) {
 
 function Metric({ label, value, unit }: { label: string; value: string; unit?: string }) {
   return (
-    <div className="rounded-xl border border-border/40 bg-black/20 p-3">
+    <div className="rounded-xl border border-border/40 bg-black/20 p-3.5">
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="mt-0.5 text-base font-semibold tabular-nums">
+      <div className="mt-1 text-lg font-bold tabular-nums text-foreground">
         {value}
-        {unit && <span className="ml-1 text-[10px] text-muted-foreground">{unit}</span>}
+        {unit && <span className="ml-1 text-xs font-normal text-muted-foreground">{unit}</span>}
       </div>
     </div>
   );
@@ -158,12 +240,21 @@ function Metric({ label, value, unit }: { label: string; value: string; unit?: s
 
 function Diag({ icon, label, value }: { icon?: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between rounded-lg bg-black/15 px-2.5 py-1.5">
-      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+    <div className="flex items-center justify-between rounded-lg bg-black/15 px-3 py-2">
+      <span className="flex items-center gap-1.5 text-muted-foreground">
         {icon}
         {label}
       </span>
-      <span className="text-xs font-medium">{value}</span>
+      <span className="font-medium text-foreground">{value}</span>
     </div>
   );
+}
+
+function formatUptime(sec: number) {
+  const d = Math.floor(sec / 86400);
+  const h = Math.floor((sec % 86400) / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m ${sec % 60}s`;
 }

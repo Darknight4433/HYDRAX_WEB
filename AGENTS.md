@@ -1,10 +1,25 @@
-<!-- LOVABLE:BEGIN -->
-> [!IMPORTANT]
-> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
-> published git history — force pushing, or rebasing/amending/squashing commits
-> that are already pushed — as it rewrites history on Lovable's side and the
-> user will likely lose their project history.
->
-> Commits you push to the connected branch sync back to Lovable and show up in
-> the editor, so keep the branch in a working state.
-<!-- LOVABLE:END -->
+# HYDRAX - AI-Powered Water Monitoring & Valve Control System
+
+HYDRAX is an enterprise IoT water management platform engineered for institutional water monitoring, predictive leak detection, automated shutoff control, and real-time consumption analytics.
+
+## Tech Stack
+- **Framework**: TanStack Start & TanStack Router
+- **Runtime / Bundler**: Vite 8 & React 19
+- **Styling**: Tailwind CSS v4 & custom glassmorphism styling
+- **Components**: Radix UI primitives & Lucide React icons
+- **State & Data**: TanStack Query & Recharts analytics
+- **Database / IoT Backend**: Firebase Realtime sync support
+
+## Key Features
+- **Overview Dashboard**: Live aggregate consumption, fleet health, IoT node status, and quick telemetry.
+- **Node Management**: Detailed view and controls for individual IoT nodes across facilities.
+- **Analytics & Graphs**: Historical consumption metrics, leak history, pressure trends, and flow rates.
+- **Valve Control**: Manual and AI-assisted remote valve open/close actuation.
+- **Thresholds & Alerts**: Configurable pressure and flow limits with automatic alerts.
+
+## Development
+```bash
+npm install
+npm run dev
+npm run build
+```

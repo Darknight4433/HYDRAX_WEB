@@ -17,11 +17,14 @@ export function GlassCard({ className, children, glow, ...rest }: GlassCardProps
       className={cn(
         "glass relative overflow-hidden rounded-2xl p-5",
         glow && "glow-primary",
-        className
+        className,
       )}
       {...rest}
     >
-      <div className="pointer-events-none absolute inset-0 opacity-60" style={{ background: "var(--gradient-glow)" }} />
+      <div
+        className="pointer-events-none absolute inset-0 opacity-60"
+        style={{ background: "var(--gradient-glow)" }}
+      />
       <div className="relative">{children}</div>
     </motion.div>
   );
