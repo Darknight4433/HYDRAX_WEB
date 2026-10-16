@@ -24,6 +24,7 @@ import { useHydrax } from "@/lib/hydrax-store";
 import { StatusPill } from "./StatusPill";
 import { firebaseConfigured } from "@/lib/firebase";
 import { LiveSyncClock } from "./LiveSyncClock";
+import { Capacitor } from "@capacitor/core";
 
 const allNav = [
   { to: "/", label: "Overview", icon: Gauge },
@@ -37,6 +38,7 @@ const allNav = [
 ] as const;
 
 export function AppShell() {
+  const isNative = typeof window !== "undefined" && Capacitor.isNativePlatform();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const data = useHydrax();
@@ -133,22 +135,24 @@ export function AppShell() {
 
         {/* Desktop Sidebar Footer */}
         <div className="pt-3 space-y-2">
-          <a
-            href="/hydrax.apk"
-            download="HYDRAX.apk"
-            className="flex items-center justify-between rounded-xl border border-primary/30 bg-gradient-to-r from-primary/15 to-accent/10 px-3 py-2 text-xs font-semibold text-foreground hover:border-primary/60 hover:from-primary/25 hover:to-accent/20 transition-all glow-sm group"
-          >
-            <div className="flex items-center gap-2">
-              <div className="grid h-6 w-6 place-items-center rounded-lg bg-primary/20 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                <Smartphone className="h-3.5 w-3.5" />
+          {!isNative && (
+            <a
+              href="/hydrax.apk"
+              download="HYDRAX.apk"
+              className="flex items-center justify-between rounded-xl border border-primary/30 bg-gradient-to-r from-primary/15 to-accent/10 px-3 py-2 text-xs font-semibold text-foreground hover:border-primary/60 hover:from-primary/25 hover:to-accent/20 transition-all glow-sm group"
+            >
+              <div className="flex items-center gap-2">
+                <div className="grid h-6 w-6 place-items-center rounded-lg bg-primary/20 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                  <Smartphone className="h-3.5 w-3.5" />
+                </div>
+                <div className="text-left">
+                  <div className="leading-tight text-xs font-medium">Download APK</div>
+                  <div className="text-[10px] font-normal text-muted-foreground">Android Mobile App</div>
+                </div>
               </div>
-              <div className="text-left">
-                <div className="leading-tight text-xs font-medium">Download APK</div>
-                <div className="text-[10px] font-normal text-muted-foreground">Android Mobile App</div>
-              </div>
-            </div>
-            <Download className="h-3.5 w-3.5 text-primary group-hover:translate-y-0.5 transition-transform" />
-          </a>
+              <Download className="h-3.5 w-3.5 text-primary group-hover:translate-y-0.5 transition-transform" />
+            </a>
+          )}
 
           <div className="rounded-xl border border-border/40 bg-black/20 p-2.5 text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
@@ -163,15 +167,29 @@ export function AppShell() {
       {/* Main Content Area */}
       <div className="min-w-0 flex-1 flex flex-col lg:pl-72">
         {/* Top Header */}
-        <header className="sticky top-0 z-20 border-b border-border/50 bg-background/80 backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:px-6 sm:py-3">
+        <header
+          className="sticky top-0 z-20 border-b border-border/50 bg-background/95 backdrop-blur-xl transition-all"
+          style={{
+            paddingTop: isNative
+              ? "max(env(safe-area-inset-top, 0px), 42px)"
+              : "max(env(safe-area-inset-top, 0px), 0px)",
+          }}
+        >
+          <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 sm:px-6 sm:py-3">
             {/* Mobile Brand / Desktop Title */}
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="flex lg:hidden items-center gap-2">
-                <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-primary to-accent shadow-md shadow-primary/20">
+              <div className="flex lg:hidden items-center gap-2.5">
+                <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-primary to-accent shadow-md shadow-primary/20 shrink-0">
                   <Droplets className="h-4 w-4 text-primary-foreground" />
                 </div>
-                <span className="font-bold tracking-tight text-gradient text-base">HYDRAX</span>
+                <div className="min-w-0">
+                  <span className="font-bold tracking-tight text-gradient text-base block leading-tight">
+                    HYDRAX
+                  </span>
+                  <span className="text-[9px] uppercase tracking-wider text-muted-foreground block font-mono">
+                    Smart Water OS
+                  </span>
+                </div>
               </div>
 
               <div className="hidden lg:block min-w-0">
@@ -185,7 +203,7 @@ export function AppShell() {
             </div>
 
             {/* Right Action Cluster */}
-            <div className="flex items-center gap-1.5 sm:gap-2.5">
+            <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
               {/* Desktop Search */}
               <div className="hidden items-center gap-2 rounded-full border border-border/50 bg-white/5 px-3 py-1.5 md:flex">
                 <Search className="h-3.5 w-3.5 text-muted-foreground" />
@@ -207,18 +225,20 @@ export function AppShell() {
                 {isOnline ? "Live" : "Offline"}
               </StatusPill>
 
-              {/* Direct APK Download Button */}
-              <a
-                href="/hydrax.apk"
-                download="HYDRAX.apk"
-                className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-gradient-to-r from-primary/15 to-accent/15 px-2.5 py-1 sm:px-3 sm:py-1.5 text-[11px] sm:text-xs font-semibold text-primary hover:bg-primary/25 hover:border-primary transition-all glow-sm"
-                title="Download HYDRAX Android APK"
-                onClick={triggerHaptic}
-              >
-                <Smartphone className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                <span>APK</span>
-                <Download className="h-2.5 w-2.5 sm:h-3 sm:w-3 opacity-80" />
-              </a>
+              {/* Direct APK Download Button (Web Only - Hidden inside Native APK) */}
+              {!isNative && (
+                <a
+                  href="/hydrax.apk"
+                  download="HYDRAX.apk"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-gradient-to-r from-primary/15 to-accent/15 px-2.5 py-1 sm:px-3 sm:py-1.5 text-[11px] sm:text-xs font-semibold text-primary hover:bg-primary/25 hover:border-primary transition-all glow-sm"
+                  title="Download HYDRAX Android APK"
+                  onClick={triggerHaptic}
+                >
+                  <Smartphone className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  <span>APK</span>
+                  <Download className="h-2.5 w-2.5 sm:h-3 sm:w-3 opacity-80" />
+                </a>
+              )}
 
               {/* Mobile Drawer Toggle */}
               <button
@@ -354,6 +374,11 @@ export function AppShell() {
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 260 }}
               className="fixed inset-y-0 right-0 z-50 w-full max-w-xs bg-[color:var(--sidebar)] border-l border-border/50 p-5 shadow-2xl flex flex-col lg:hidden"
+              style={{
+                paddingTop: isNative
+                  ? "max(env(safe-area-inset-top, 0px), 44px)"
+                  : "1.25rem",
+              }}
             >
               {/* Drawer Header */}
               <div className="flex items-center justify-between pb-4 border-b border-border/40">
@@ -423,26 +448,43 @@ export function AppShell() {
                 })}
               </div>
 
-              {/* Drawer Footer with APK Download */}
+              {/* Drawer Footer with APK Download / Native App Info */}
               <div className="pt-3 border-t border-border/40 space-y-2.5">
-                <a
-                  href="/hydrax.apk"
-                  download="HYDRAX.apk"
-                  onClick={() => {
-                    triggerHaptic();
-                    setDrawerOpen(false);
-                  }}
-                  className="flex items-center justify-between rounded-xl bg-gradient-to-r from-primary to-accent p-3 text-xs font-semibold text-primary-foreground shadow-lg shadow-primary/25"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Smartphone className="h-4 w-4" />
-                    <div className="text-left">
-                      <div>Download HYDRAX APK</div>
-                      <div className="text-[10px] opacity-80">v1.0 for Android (4.4 MB)</div>
+                {!isNative ? (
+                  <a
+                    href="/hydrax.apk"
+                    download="HYDRAX.apk"
+                    onClick={() => {
+                      triggerHaptic();
+                      setDrawerOpen(false);
+                    }}
+                    className="flex items-center justify-between rounded-xl bg-gradient-to-r from-primary to-accent p-3 text-xs font-semibold text-primary-foreground shadow-lg shadow-primary/25"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Smartphone className="h-4 w-4" />
+                      <div className="text-left">
+                        <div>Download HYDRAX APK</div>
+                        <div className="text-[10px] opacity-80">v1.0 for Android (4.6 MB)</div>
+                      </div>
                     </div>
+                    <Download className="h-4 w-4" />
+                  </a>
+                ) : (
+                  <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 p-2.5 text-xs">
+                    <div className="flex items-center gap-2.5">
+                      <div className="grid h-7 w-7 place-items-center rounded-lg bg-primary/20 text-primary">
+                        <Smartphone className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-foreground text-xs">HYDRAX Android App</div>
+                        <div className="text-[10px] text-muted-foreground">Version 1.0.0 · Active</div>
+                      </div>
+                    </div>
+                    <span className="text-[10px] rounded-full bg-emerald-500/20 text-emerald-400 px-2 py-0.5 font-medium border border-emerald-500/30">
+                      Installed
+                    </span>
                   </div>
-                  <Download className="h-4 w-4" />
-                </a>
+                )}
 
                 <div className="text-[10px] text-center text-muted-foreground/70">
                   HYDRAX Smart Water Monitor · ESP8266 IoT OS
