@@ -14,6 +14,7 @@ import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as ControlRouteImport } from './routes/control'
 import { Route as GraphsRouteImport } from './routes/graphs'
+import { Route as HealthRouteImport } from './routes/health'
 import { Route as NodesRouteImport } from './routes/nodes'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
@@ -44,6 +45,11 @@ const GraphsRoute = GraphsRouteImport.update({
   path: '/graphs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HealthRoute = HealthRouteImport.update({
+  id: '/health',
+  path: '/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NodesRoute = NodesRouteImport.update({
   id: '/nodes',
   path: '/nodes',
@@ -71,6 +77,7 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRoute
   '/control': typeof ControlRoute
   '/graphs': typeof GraphsRoute
+  '/health': typeof HealthRoute
   '/nodes': typeof NodesRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
   '/analytics': typeof AnalyticsRoute
   '/control': typeof ControlRoute
   '/graphs': typeof GraphsRoute
+  '/health': typeof HealthRoute
   '/nodes': typeof NodesRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -94,6 +102,7 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRoute
   '/control': typeof ControlRoute
   '/graphs': typeof GraphsRoute
+  '/health': typeof HealthRoute
   '/nodes': typeof NodesRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -107,6 +116,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/control'
     | '/graphs'
+    | '/health'
     | '/nodes'
     | '/settings'
     | '/sitemap.xml'
@@ -118,6 +128,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/control'
     | '/graphs'
+    | '/health'
     | '/nodes'
     | '/settings'
     | '/sitemap.xml'
@@ -129,6 +140,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/control'
     | '/graphs'
+    | '/health'
     | '/nodes'
     | '/settings'
     | '/sitemap.xml'
@@ -141,6 +153,7 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRoute
   ControlRoute: typeof ControlRoute
   GraphsRoute: typeof GraphsRoute
+  HealthRoute: typeof HealthRoute
   NodesRoute: typeof NodesRoute
   SettingsRoute: typeof SettingsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -184,6 +197,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GraphsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/health': {
+      id: '/health'
+      path: '/health'
+      fullPath: '/health'
+      preLoaderRoute: typeof HealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/nodes': {
       id: '/nodes'
       path: '/nodes'
@@ -221,6 +241,7 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyticsRoute: AnalyticsRoute,
   ControlRoute: ControlRoute,
   GraphsRoute: GraphsRoute,
+  HealthRoute: HealthRoute,
   NodesRoute: NodesRoute,
   SettingsRoute: SettingsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
