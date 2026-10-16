@@ -16,7 +16,6 @@ import { Route as ControlRouteImport } from './routes/control'
 import { Route as GraphsRouteImport } from './routes/graphs'
 import { Route as NodesRouteImport } from './routes/nodes'
 import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ThresholdsRouteImport } from './routes/thresholds'
 
 const IndexRoute = IndexRouteImport.update({
@@ -54,11 +53,6 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ThresholdsRoute = ThresholdsRouteImport.update({
   id: '/thresholds',
   path: '/thresholds',
@@ -73,7 +67,6 @@ export interface FileRoutesByFullPath {
   '/graphs': typeof GraphsRoute
   '/nodes': typeof NodesRoute
   '/settings': typeof SettingsRoute
-  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/thresholds': typeof ThresholdsRoute
 }
 export interface FileRoutesByTo {
@@ -84,7 +77,6 @@ export interface FileRoutesByTo {
   '/graphs': typeof GraphsRoute
   '/nodes': typeof NodesRoute
   '/settings': typeof SettingsRoute
-  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/thresholds': typeof ThresholdsRoute
 }
 export interface FileRoutesById {
@@ -96,7 +88,6 @@ export interface FileRoutesById {
   '/graphs': typeof GraphsRoute
   '/nodes': typeof NodesRoute
   '/settings': typeof SettingsRoute
-  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/thresholds': typeof ThresholdsRoute
 }
 export interface FileRouteTypes {
@@ -109,7 +100,6 @@ export interface FileRouteTypes {
     | '/graphs'
     | '/nodes'
     | '/settings'
-    | '/sitemap.xml'
     | '/thresholds'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -120,7 +110,6 @@ export interface FileRouteTypes {
     | '/graphs'
     | '/nodes'
     | '/settings'
-    | '/sitemap.xml'
     | '/thresholds'
   id:
     | '__root__'
@@ -131,7 +120,6 @@ export interface FileRouteTypes {
     | '/graphs'
     | '/nodes'
     | '/settings'
-    | '/sitemap.xml'
     | '/thresholds'
   fileRoutesById: FileRoutesById
 }
@@ -143,7 +131,6 @@ export interface RootRouteChildren {
   GraphsRoute: typeof GraphsRoute
   NodesRoute: typeof NodesRoute
   SettingsRoute: typeof SettingsRoute
-  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ThresholdsRoute: typeof ThresholdsRoute
 }
 
@@ -198,13 +185,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/thresholds': {
       id: '/thresholds'
       path: '/thresholds'
@@ -223,7 +203,6 @@ const rootRouteChildren: RootRouteChildren = {
   GraphsRoute: GraphsRoute,
   NodesRoute: NodesRoute,
   SettingsRoute: SettingsRoute,
-  SitemapDotxmlRoute: SitemapDotxmlRoute,
   ThresholdsRoute: ThresholdsRoute,
 }
 export const routeTree = rootRouteImport

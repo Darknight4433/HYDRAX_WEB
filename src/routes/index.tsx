@@ -144,23 +144,27 @@ export function Overview() {
       />
 
       {/* KPI Stats Grid */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
         {stats.map((s, i) => (
           <GlassCard key={s.label} transition={{ delay: i * 0.05, duration: 0.35 }}>
             <div className={`absolute inset-0 bg-gradient-to-br ${s.accent} opacity-40`} />
-            <div className="relative flex items-start justify-between">
-              <div>
-                <div className="text-xs uppercase tracking-wider text-muted-foreground">
+            <div className="relative flex items-start justify-between gap-1">
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground truncate">
                   {s.label}
                 </div>
-                <div className="mt-2 flex items-baseline gap-1.5">
-                  <span className="text-3xl font-bold tabular-nums text-foreground">{s.value}</span>
-                  <span className="text-xs text-muted-foreground">{s.unit}</span>
+                <div className="mt-1.5 sm:mt-2 flex flex-wrap items-baseline gap-1 sm:gap-1.5">
+                  <span className="text-xl sm:text-2xl lg:text-3xl font-bold tabular-nums text-foreground">
+                    {s.value}
+                  </span>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">{s.unit}</span>
                 </div>
-                <div className="mt-1 text-[11px] text-muted-foreground">{s.caption}</div>
+                <div className="mt-1 text-[10px] sm:text-[11px] text-muted-foreground line-clamp-1 sm:line-clamp-none">
+                  {s.caption}
+                </div>
               </div>
-              <div className="grid h-11 w-11 place-items-center rounded-xl bg-white/5 text-primary">
-                <s.icon className="h-5 w-5" />
+              <div className="grid h-8 w-8 sm:h-10 sm:w-10 place-items-center rounded-lg sm:rounded-xl bg-white/5 text-primary shrink-0">
+                <s.icon className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
             </div>
           </GlassCard>
@@ -187,7 +191,7 @@ export function Overview() {
             </div>
           </div>
 
-          <div className="mt-4 h-64">
+          <div className="mt-4 h-52 sm:h-64">
             {data.analytics.liveFlow && data.analytics.liveFlow.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data.analytics.liveFlow}>

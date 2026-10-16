@@ -303,8 +303,8 @@ export function GraphsPage() {
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <GlassCard>
-      <div className="mb-2 text-sm font-semibold text-muted-foreground">{title}</div>
-      <div className="h-64">{children}</div>
+      <div className="mb-2 text-xs sm:text-sm font-semibold text-muted-foreground">{title}</div>
+      <div className="h-56 sm:h-64">{children}</div>
     </GlassCard>
   );
 }

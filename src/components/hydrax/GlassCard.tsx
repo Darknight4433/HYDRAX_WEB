@@ -15,7 +15,7 @@ export function GlassCard({ className, children, glow, ...rest }: GlassCardProps
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
       className={cn(
-        "glass relative overflow-hidden rounded-2xl p-5",
+        "glass relative overflow-hidden rounded-xl sm:rounded-2xl p-3.5 sm:p-5",
         glow && "glow-primary",
         className,
       )}
@@ -32,7 +32,7 @@ export function GlassCard({ className, children, glow, ...rest }: GlassCardProps
 
 export function StaticGlass({ className, children, ...rest }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("glass rounded-2xl p-5", className)} {...rest}>
+    <div className={cn("glass rounded-xl sm:rounded-2xl p-3.5 sm:p-5", className)} {...rest}>
       {children}
     </div>
   );

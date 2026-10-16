@@ -109,38 +109,40 @@ function AlertsPage() {
 
 function AlertRow({ a, onResolve }: { a: AlertItem; onResolve?: () => void }) {
   return (
-    <GlassCard className="!p-4">
-      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-4">
-        <div
-          className={`grid h-10 w-10 place-items-center rounded-xl bg-white/5 ${severityColor(a.severity)}`}
-        >
-          <AlertTriangle className="h-5 w-5" />
-        </div>
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold">{alertTypeLabel(a.type)}</span>
-            <StatusPill
-              tone={
-                a.severity === "high" || a.severity === "critical"
-                  ? "danger"
-                  : a.severity === "medium"
-                    ? "warning"
-                    : "info"
-              }
-            >
-              {a.severity}
-            </StatusPill>
-            <span className="text-xs text-muted-foreground">
-              {formatDistanceToNowStrict(a.time, { addSuffix: true })} · {format(a.time, "PP p")}
-            </span>
+    <GlassCard className="!p-3.5 sm:!p-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex items-start gap-3 min-w-0 flex-1">
+          <div
+            className={`grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl bg-white/5 shrink-0 ${severityColor(a.severity)}`}
+          >
+            <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
-          <div className="mt-1 truncate text-sm text-foreground/90">{a.message}</div>
-          <div className="mt-1 text-xs text-muted-foreground">
-            Node · <span className="text-foreground/80">{a.nodeId}</span> · Suggested:{" "}
-            {a.suggestion}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <span className="font-semibold text-sm sm:text-base">{alertTypeLabel(a.type)}</span>
+              <StatusPill
+                tone={
+                  a.severity === "high" || a.severity === "critical"
+                    ? "danger"
+                    : a.severity === "medium"
+                      ? "warning"
+                      : "info"
+                }
+              >
+                {a.severity}
+              </StatusPill>
+              <span className="text-[11px] sm:text-xs text-muted-foreground">
+                {formatDistanceToNowStrict(a.time, { addSuffix: true })} · {format(a.time, "PP p")}
+              </span>
+            </div>
+            <div className="mt-1 text-xs sm:text-sm text-foreground/90 break-words">{a.message}</div>
+            <div className="mt-1 text-[11px] sm:text-xs text-muted-foreground">
+              Node · <span className="text-foreground/80">{a.nodeId}</span> · Suggested:{" "}
+              {a.suggestion}
+            </div>
           </div>
         </div>
-        <div>
+        <div className="self-end sm:self-center shrink-0">
           {onResolve ? (
             <Button size="sm" variant="secondary" onClick={onResolve}>
               Resolve

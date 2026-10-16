@@ -119,7 +119,7 @@ function NodeDetailCard({ node }: { node: HydraxNode }) {
 
   return (
     <GlassCard className="!p-0 overflow-hidden">
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center gap-3">
             <WaterFlowIcon active={isOpen && node.online} size={36} />
@@ -184,7 +184,7 @@ function NodeDetailCard({ node }: { node: HydraxNode }) {
           <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-medium">
             Field Diagnostics & Timestamps
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs">
             <Diag
               icon={<Signal className="h-3.5 w-3.5" />}
               label="Wi-Fi Signal"
