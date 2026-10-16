@@ -3,7 +3,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 const config: CapacitorConfig = {
   appId: "com.hydrax.aquaai",
   appName: "HYDRAX",
-  webDir: ".output/public",
+  webDir: "dist",
   server: {
     cleartext: true,
     androidScheme: "https",

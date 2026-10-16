@@ -7,7 +7,7 @@
     "dev": "vite dev --host",
     "build": "vite build",
     "build:dev": "vite build --mode development",
-    "start": "node .output/server/index.mjs",
+    "start": "vite preview",
     "preview": "vite preview",
     "android:sync": "cap sync",
     "android:build": "cap sync && cd android && gradlew.bat assembleDebug",
