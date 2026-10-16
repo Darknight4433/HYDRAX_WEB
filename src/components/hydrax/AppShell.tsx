@@ -12,7 +12,9 @@ import {
   Search,
   Settings,
   SlidersHorizontal,
+  Smartphone,
   Sparkles,
+  Download,
   X,
 } from "lucide-react";
 import { useState } from "react";
@@ -124,12 +126,31 @@ export function AppShell() {
           })}
         </nav>
 
-        <div className="absolute inset-x-4 bottom-4 rounded-xl border border-border/40 bg-black/20 p-3 text-xs text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Activity className="h-3.5 w-3.5 text-primary" />
-            {firebaseConfigured ? "Firebase RTDB Connected" : "Local Mode"}
+        <div className="absolute inset-x-4 bottom-4 space-y-2">
+          <a
+            href="/hydrax.apk"
+            download="HYDRAX.apk"
+            className="flex items-center justify-between rounded-xl border border-primary/30 bg-gradient-to-r from-primary/15 to-accent/10 px-3 py-2 text-xs font-semibold text-foreground hover:border-primary/60 hover:from-primary/25 hover:to-accent/20 transition-all glow-sm group"
+          >
+            <div className="flex items-center gap-2">
+              <div className="grid h-6 w-6 place-items-center rounded-lg bg-primary/20 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                <Smartphone className="h-3.5 w-3.5" />
+              </div>
+              <div className="text-left">
+                <div className="leading-tight text-xs font-medium">Download APK</div>
+                <div className="text-[10px] font-normal text-muted-foreground">Android Mobile App</div>
+              </div>
+            </div>
+            <Download className="h-3.5 w-3.5 text-primary group-hover:translate-y-0.5 transition-transform" />
+          </a>
+
+          <div className="rounded-xl border border-border/40 bg-black/20 p-2.5 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Activity className="h-3.5 w-3.5 text-primary" />
+              {firebaseConfigured ? "Firebase RTDB Connected" : "Local Mode"}
+            </div>
+            <div className="mt-0.5 truncate text-[11px]">Wemos D1 Mini · ESP8266</div>
           </div>
-          <div className="mt-1 truncate text-[11px]">Wemos D1 Mini · ESP8266</div>
         </div>
       </aside>
 
@@ -184,6 +205,18 @@ export function AppShell() {
               >
                 Wemos {data.controller?.online ? "Live" : "Standby"}
               </StatusPill>
+
+              {/* Direct APK Download Button */}
+              <a
+                href="/hydrax.apk"
+                download="HYDRAX.apk"
+                className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-gradient-to-r from-primary/15 to-accent/15 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/25 hover:border-primary transition-all glow-sm"
+                title="Download HYDRAX Android APK (v1.0)"
+              >
+                <Smartphone className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Get APK</span>
+                <Download className="h-3 w-3 opacity-80" />
+              </a>
             </div>
           </div>
         </header>

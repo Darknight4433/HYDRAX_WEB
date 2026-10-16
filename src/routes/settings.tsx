@@ -1,7 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Bell, Building2, Clock, Cpu, ExternalLink, Palette, Sliders, Wifi } from "lucide-react";
+import {
+  Bell,
+  Building2,
+  CheckCircle2,
+  Clock,
+  Cpu,
+  Download,
+  ExternalLink,
+  Palette,
+  Sliders,
+  Smartphone,
+  Wifi,
+} from "lucide-react";
 import { GlassCard } from "@/components/hydrax/GlassCard";
 import { PageHeader } from "@/components/hydrax/PageHeader";
 import { StatusPill } from "@/components/hydrax/StatusPill";
@@ -208,6 +220,51 @@ function SettingsPage() {
                 </span>
               }
             />
+          </div>
+        </GlassCard>
+
+        {/* Android Mobile Application (.APK) */}
+        <GlassCard className="lg:col-span-2 border-primary/30 bg-gradient-to-br from-primary/5 via-transparent to-accent/5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-lg shadow-primary/20">
+                <Smartphone className="h-6 w-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-bold">HYDRAX Mobile Application</h3>
+                  <span className="rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
+                    Android .APK
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Control valves, monitor IoT nodes, and receive instant leak alerts directly on your Android smartphone.
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Version: v1.0.0
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Size: ~4.4 MB
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Requirements: Android 8.0+
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="shrink-0 flex sm:flex-col items-center justify-end gap-2">
+              <a
+                href="/hydrax.apk"
+                download="HYDRAX.apk"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-accent px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 hover:opacity-95 transition-opacity glow-sm"
+              >
+                <Download className="h-4 w-4" />
+                <span>Download APK</span>
+              </a>
+              <span className="text-[11px] text-muted-foreground">Direct APK Installer</span>
+            </div>
           </div>
         </GlassCard>
       </div>
