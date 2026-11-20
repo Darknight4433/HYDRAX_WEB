@@ -93,7 +93,18 @@ unsigned long lastTelemetryPush  = 0;
 unsigned long lastButtonDebounce = 0;
 
 // ==========================================
-// 5. INTERRUPT SERVICE ROUTINE (Flow Pulses)
+// 5. FORWARD DECLARATIONS (Function Prototypes)
+// ==========================================
+void setActuatorRelay(bool energize, bool fromManualButton = false);
+void calculateWaterFlow();
+void sampleTdsSensor();
+void measureUltrasonicReservoir();
+void handlePhysicalOverrideButton();
+void pollWebsiteCommands();
+void pushTelemetryToFirebase();
+
+// ==========================================
+// 6. INTERRUPT SERVICE ROUTINE (Flow Pulses)
 // ==========================================
 IRAM_ATTR void onFlowPulseInterrupt() {
   pulseCounter++;
@@ -222,7 +233,16 @@ void measureUltrasonicReservoir() {
   }
 }
 
-// Module D: Physical Hardware Override Button (Pin D3)
+// Module D: Physical Relay Actuation Setter
+void setActuatorRelay(bool energize, bool fromManualButton = false) {
+  relayState = energize;
+  digitalWrite(RELAY_PIN, relayState ? RELAY_ACTIVE_STATE : RELAY_INACTIVE_STATE);
+  if (fromManualButton) {
+    manualOverrideActive = true;
+  }
+}
+
+// Module E: Physical Hardware Override Button (Pin D3)
 void handlePhysicalOverrideButton() {
   static int lastButtonState = HIGH;
   int currentButtonState = digitalRead(BUTTON_PIN);
@@ -236,15 +256,6 @@ void handlePhysicalOverrideButton() {
     }
   }
   lastButtonState = currentButtonState;
-}
-
-// Module E: Physical Relay Actuation Setter
-void setActuatorRelay(bool energize, bool fromManualButton = false) {
-  relayState = energize;
-  digitalWrite(RELAY_PIN, relayState ? RELAY_ACTIVE_STATE : RELAY_INACTIVE_STATE);
-  if (fromManualButton) {
-    manualOverrideActive = true;
-  }
 }
 
 // ==========================================
