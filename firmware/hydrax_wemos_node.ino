@@ -234,7 +234,7 @@ void measureUltrasonicReservoir() {
 }
 
 // Module D: Physical Relay Actuation Setter
-void setActuatorRelay(bool energize, bool fromManualButton = false) {
+void setActuatorRelay(bool energize, bool fromManualButton) {
   relayState = energize;
   digitalWrite(RELAY_PIN, relayState ? RELAY_ACTIVE_STATE : RELAY_INACTIVE_STATE);
   if (fromManualButton) {
