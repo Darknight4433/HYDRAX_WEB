@@ -11,9 +11,9 @@
  *   - Flow Sensor (YF-S201)        : Pin D7 (GPIO 13) - Interrupt
  *   - Relay Actuator (Solenoid)    : Pin D5 (GPIO 14) - Active LOW / HIGH
  *   - Physical Push Button         : Pin D3 (GPIO 0)  - Internal Pullup
+ *   - HC-SR04 Ultrasonic Trig     : Pin D1 (GPIO 5)  - Output
+ *   - HC-SR04 Ultrasonic Echo     : Pin D2 (GPIO 4)  - Input
  *   - TDS Sensor Analog ADC        : Pin A0 (ADC0)    - 0 to 3.3V
- *   - HC-SR04 Ultrasonic Trig     : Pin D6 (GPIO 12) - Output
- *   - HC-SR04 Ultrasonic Echo     : Pin D8 (GPIO 15) - Input
  * =========================================================================================
  */
 
@@ -46,14 +46,14 @@ const float TANK_CAPACITY_LITRES    = 1000.0;// Full volume capacity (Litres)
 const float FLOW_CALIBRATION_FACTOR = 7.5;   // Pulses per second per L/min (YF-S201)
 
 // ==========================================
-// 3. HARDWARE PIN DEFINITIONS
+// 3. HARDWARE PIN DEFINITIONS (User Configured)
 // ==========================================
-const uint8_t PIN_FLOW_SENSOR   = D7; // GPIO 13
-const uint8_t PIN_RELAY_VALVE   = D5; // GPIO 14
-const uint8_t PIN_MANUAL_BUTTON = D3; // GPIO 0
-const uint8_t PIN_US_TRIG       = D6; // GPIO 12
-const uint8_t PIN_US_ECHO       = D8; // GPIO 15
-const uint8_t PIN_TDS_ADC       = A0; // ADC0
+#define FLOW_PIN       D7  // Flow sensor pulse output (Interrupt GPIO 13)
+#define RELAY_PIN      D5  // Solenoid / Relay control (GPIO 14)
+#define TRIG_PIN       D1  // Ultrasonic HC-SR04 Trigger (GPIO 5)
+#define ECHO_PIN       D2  // Ultrasonic HC-SR04 Echo (GPIO 4)
+#define BUTTON_PIN     D3  // Physical override push button (GPIO 0)
+#define TDS_PIN        A0  // Analog TDS sensor reading (ADC0)
 
 // ==========================================
 // 4. GLOBAL OBJECTS & STATE REGISTERS
@@ -110,16 +110,16 @@ void setup() {
   Serial.println("=======================================================");
 
   // 1. Configure Hardware Pins
-  pinMode(PIN_RELAY_VALVE, OUTPUT);
-  digitalWrite(PIN_RELAY_VALVE, RELAY_INACTIVE_STATE); // Keep valve closed on boot
+  pinMode(RELAY_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, RELAY_INACTIVE_STATE); // Keep valve closed on boot
 
-  pinMode(PIN_MANUAL_BUTTON, INPUT_PULLUP);
-  pinMode(PIN_FLOW_SENSOR, INPUT_PULLUP);
-  pinMode(PIN_US_TRIG, OUTPUT);
-  pinMode(PIN_US_ECHO, INPUT);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(FLOW_PIN, INPUT_PULLUP);
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
 
   // 2. Attach Interrupt for YF-S201 Flow Meter on Pin D7
-  attachInterrupt(digitalPinToInterrupt(PIN_FLOW_SENSOR), onFlowPulseInterrupt, FALLING);
+  attachInterrupt(digitalPinToInterrupt(FLOW_PIN), onFlowPulseInterrupt, FALLING);
 
   // 3. Connect to Wi-Fi
   WiFi.mode(WIFI_STA);
@@ -162,7 +162,7 @@ void calculateWaterFlow() {
   float elapsedSec = (now - lastFlowTime) / 1000.0;
 
   if (elapsedSec >= 1.0) {
-    detachInterrupt(digitalPinToInterrupt(PIN_FLOW_SENSOR));
+    detachInterrupt(digitalPinToInterrupt(FLOW_PIN));
 
     // L/min = (pulses / 7.5) / elapsedSeconds
     currentFlowRateLMin = (pulseCounter / FLOW_CALIBRATION_FACTOR) / elapsedSec;
@@ -175,14 +175,14 @@ void calculateWaterFlow() {
 
     pulseCounter = 0;
     lastFlowTime = now;
-    attachInterrupt(digitalPinToInterrupt(PIN_FLOW_SENSOR), onFlowPulseInterrupt, FALLING);
+    attachInterrupt(digitalPinToInterrupt(FLOW_PIN), onFlowPulseInterrupt, FALLING);
   }
 }
 
 // Module B: TDS Sensor Sampling & Voltage Conversion (Pin A0)
 void sampleTdsSensor() {
   // Read 10-bit analog pin A0 (0 - 1023)
-  currentTdsRawADC = analogRead(PIN_TDS_ADC);
+  currentTdsRawADC = analogRead(TDS_PIN);
   currentTdsVoltage = (currentTdsRawADC * 3.3) / 1024.0;
 
   // Temperature compensation formula (25°C standard reference)
@@ -199,14 +199,14 @@ void sampleTdsSensor() {
 
 // Module C: HC-SR04 Ultrasonic Reservoir Level
 void measureUltrasonicReservoir() {
-  digitalWrite(PIN_US_TRIG, LOW);
+  digitalWrite(TRIG_PIN, LOW);
   delayMicroseconds(2);
-  digitalWrite(PIN_US_TRIG, HIGH);
+  digitalWrite(TRIG_PIN, HIGH);
   delayMicroseconds(10);
-  digitalWrite(PIN_US_TRIG, LOW);
+  digitalWrite(TRIG_PIN, LOW);
 
   // Measure round-trip sound wave pulse (30ms timeout = ~500cm max)
-  long durationMicros = pulseIn(PIN_US_ECHO, HIGH, 30000);
+  long durationMicros = pulseIn(ECHO_PIN, HIGH, 30000);
 
   if (durationMicros > 0) {
     // Sound speed = 0.0343 cm/microsecond (divide by 2 for round-trip)
@@ -225,7 +225,7 @@ void measureUltrasonicReservoir() {
 // Module D: Physical Hardware Override Button (Pin D3)
 void handlePhysicalOverrideButton() {
   static int lastButtonState = HIGH;
-  int currentButtonState = digitalRead(PIN_MANUAL_BUTTON);
+  int currentButtonState = digitalRead(BUTTON_PIN);
 
   if (currentButtonState == LOW && lastButtonState == HIGH) {
     if (millis() - lastButtonDebounce > 250) {
@@ -241,7 +241,7 @@ void handlePhysicalOverrideButton() {
 // Module E: Physical Relay Actuation Setter
 void setActuatorRelay(bool energize, bool fromManualButton = false) {
   relayState = energize;
-  digitalWrite(PIN_RELAY_VALVE, relayState ? RELAY_ACTIVE_STATE : RELAY_INACTIVE_STATE);
+  digitalWrite(RELAY_PIN, relayState ? RELAY_ACTIVE_STATE : RELAY_INACTIVE_STATE);
   if (fromManualButton) {
     manualOverrideActive = true;
   }

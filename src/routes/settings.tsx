@@ -184,7 +184,7 @@ function SettingsPage() {
                   Ultrasonic Reservoir Monitoring &amp; Pump Hysteresis Calibration
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  HC-SR04 pins D6 (Trig) / D8 (Echo) &amp; automated refill pump relay on pin D2.
+                  HC-SR04 pins D1 (Trig) / D2 (Echo) &amp; automated refill pump telemetry.
                 </p>
               </div>
             </div>
@@ -228,7 +228,7 @@ function SettingsPage() {
                   size="sm"
                   onClick={async () => {
                     await setTankLevelSource("ultrasonic");
-                    toast.success("Switched to Real Ultrasonic Sensor Mode (HC-SR04 Pins D6/D8)");
+                    toast.success("Switched to Real Ultrasonic Sensor Mode (HC-SR04 Pins D1/D2)");
                   }}
                   className="gap-1.5"
                 >
@@ -277,7 +277,7 @@ function SettingsPage() {
                   </span>
                 ) : (
                   <span>
-                    Water level is measured strictly by sound wave reflection pulses from the HC-SR04 sensor mounted at the top of the tank on Pins D6/D8.
+                    Water level is measured strictly by sound wave reflection pulses from the HC-SR04 sensor mounted at the top of the tank on Pins D1/D2.
                   </span>
                 )}
               </div>
@@ -911,6 +911,14 @@ function SettingsPage() {
             <Row
               label="Push Button Pin"
               value={<span className="text-sm font-mono text-primary">Pin D3 (GPIO 0)</span>}
+            />
+            <Row
+              label="Ultrasonic Trig Pin"
+              value={<span className="text-sm font-mono text-cyan-400">Pin D1 (GPIO 5)</span>}
+            />
+            <Row
+              label="Ultrasonic Echo Pin"
+              value={<span className="text-sm font-mono text-cyan-400">Pin D2 (GPIO 4)</span>}
             />
             <Row
               label="pH Sensor Pin"
