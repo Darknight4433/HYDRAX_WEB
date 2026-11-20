@@ -9,8 +9,8 @@
     "build:dev": "vite build --mode development",
     "start": "vite preview",
     "preview": "vite preview",
-    "android:sync": "cap sync",
-    "android:build": "cap sync && cd android && gradlew.bat assembleDebug",
+    "android:sync": "npm run build && cap sync",
+    "android:build": "npm run build && cap sync && cd android && gradlew.bat assembleDebug",
     "android:open": "cap open android",
     "lint": "eslint .",
     "format": "prettier --write ."
@@ -19,6 +19,7 @@
     "@capacitor/android": "^8.5.3",
     "@capacitor/cli": "^8.5.3",
     "@capacitor/core": "^8.5.3",
+    "@capacitor/local-notifications": "^8.3.1",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",

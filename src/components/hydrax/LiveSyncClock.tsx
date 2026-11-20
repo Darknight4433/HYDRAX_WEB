@@ -71,22 +71,23 @@ export function LiveSyncClock({
     return (
       <div
         className={`inline-flex items-center gap-2 rounded-full border border-border/60 bg-black/25 px-3 py-1 text-xs backdrop-blur-md ${className}`}
+        title={hasRecentSync ? "Hardware Telemetry Live & Synchronized" : "Wemos Controller Standby / Offline"}
       >
         <span className="relative flex h-2 w-2">
-          <span
-            className={`absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping ${
-              hasRecentSync ? "bg-emerald-400" : "bg-sky-400"
-            }`}
-          />
+          {hasRecentSync && (
+            <span className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping bg-emerald-400" />
+          )}
           <span
             className={`relative inline-flex h-2 w-2 rounded-full ${
-              hasRecentSync ? "bg-emerald-500" : "bg-sky-500"
+              hasRecentSync ? "bg-emerald-500" : "bg-muted-foreground/40"
             }`}
           />
         </span>
         <Clock className="h-3 w-3 text-primary" />
         <span className="font-semibold tabular-nums text-foreground">{timeString12}</span>
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground/80">12-hr</span>
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground/80">
+          {hasRecentSync ? "Live" : "Standby"}
+        </span>
       </div>
     );
   }

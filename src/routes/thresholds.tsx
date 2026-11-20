@@ -56,6 +56,8 @@ const FIELD_CONFIGS: ThresholdFieldConfig[] = [
     icon: Sun,
     associatedMode: "auto",
   },
+
+
   {
     key: "breakTime",
     label: "Break Time",
@@ -479,22 +481,20 @@ export function ThresholdsPage() {
           return (
             <GlassCard
               key={f.key}
-              className={`transition-all ${
-                isActiveMode
+              className={`transition-all ${isActiveMode
                   ? "border-primary/60 ring-1 ring-primary/40 bg-primary/5"
                   : hasError
                     ? "border-destructive/60"
                     : ""
-              }`}
+                }`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
                   <div
-                    className={`grid h-11 w-11 place-items-center rounded-xl ${
-                      isActiveMode
+                    className={`grid h-11 w-11 place-items-center rounded-xl ${isActiveMode
                         ? "bg-primary text-primary-foreground"
                         : "bg-primary/15 text-primary"
-                    }`}
+                      }`}
                   >
                     <f.icon className="h-5 w-5" />
                   </div>
@@ -527,11 +527,10 @@ export function ThresholdsPage() {
                       value={currentVal}
                       onChange={(e) => handleInputChange(f.key, e.target.value)}
                       placeholder="e.g. 22"
-                      className={`w-full rounded-xl border bg-black/30 px-3.5 py-2.5 text-xl font-bold tabular-nums text-foreground outline-none transition-colors ${
-                        hasError
+                      className={`w-full rounded-xl border bg-black/30 px-3.5 py-2.5 text-xl font-bold tabular-nums text-foreground outline-none transition-colors ${hasError
                           ? "border-destructive focus:border-destructive"
                           : "border-border/50 focus:border-primary"
-                      }`}
+                        }`}
                     />
                   </div>
                   <span className="text-sm font-semibold text-muted-foreground whitespace-nowrap">

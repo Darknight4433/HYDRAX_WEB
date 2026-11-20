@@ -127,8 +127,14 @@ export function GraphsPage() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Live Flow Area Chart */}
-        <ChartCard title="Live Flow Rate (Pin D7 Telemetry)">
-          {hasLive ? (
+        <ChartCard
+          title={
+            node?.online
+              ? "Live Flow Rate (Pin D7 Telemetry)"
+              : "Flow Rate Telemetry (Wemos Offline)"
+          }
+        >
+          {hasLive && node?.online ? (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={a.liveFlow}>
                 <defs>
@@ -175,8 +181,12 @@ export function GraphsPage() {
           ) : (
             <EmptyChartState
               icon={Waves}
-              title="Awaiting Live Flow Stream"
-              description="Real-time flow ticks from Wemos D1 Mini will graph here as water passes through sensor D7."
+              title={node?.online ? "Awaiting Flow Pulses" : "Wemos Controller Offline"}
+              description={
+                node?.online
+                  ? "Real-time flow ticks from Wemos D1 Mini will graph here as water passes through sensor D7."
+                  : "Connect Wemos D1 Mini to Wi-Fi and Firebase RTDB to begin streaming live flow telemetry."
+              }
             />
           )}
         </ChartCard>

@@ -5,12 +5,17 @@ import {
   AlertCircle,
   Calendar,
   Coffee,
+  Cpu,
+  Droplets,
   Info,
+  Layers,
   Lock,
   Power,
   ShieldAlert,
+  Sparkles,
   Unlock,
   Wand2,
+  Zap,
 } from "lucide-react";
 import { GlassCard } from "@/components/hydrax/GlassCard";
 import { PageHeader } from "@/components/hydrax/PageHeader";
@@ -27,8 +32,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { setNodeMode, setValve, useHydrax } from "@/lib/hydrax-store";
-import type { HydraxNode, OperatingMode, ValveState } from "@/lib/hydrax-types";
+import { setNodeMode, setPumpMode, setPumpState, setValve, useHydrax } from "@/lib/hydrax-store";
+import type {
+  HydraxNode,
+  OperatingMode,
+  PumpMode,
+  PumpState,
+  ValveState,
+} from "@/lib/hydrax-types";
 import { LiveSyncClock } from "@/components/hydrax/LiveSyncClock";
 
 export const Route = createFileRoute("/control")({
@@ -47,6 +58,8 @@ export const Route = createFileRoute("/control")({
 
 type Pending =
   | { kind: "valve"; nodeId: string; state: ValveState; label: string }
+  | { kind: "pump"; nodeId: string; state: PumpState; label: string }
+  | { kind: "pumpMode"; nodeId: string; mode: PumpMode; label: string }
   | { kind: "mode"; nodeId: string; mode: OperatingMode; label: string }
   | null;
 
@@ -73,9 +86,10 @@ function ControlPage() {
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Main Relay Controller Card */}
+        {/* Main Relay & Pump Controller Cards */}
         <div className="lg:col-span-2 space-y-4">
           {node && <SingleNodeControlCard node={node} onAction={setPending} />}
+          {node && <PumpControlCard node={node} onAction={setPending} />}
         </div>
 
         {/* Hardware & Sync Notice Card */}
@@ -92,14 +106,17 @@ function ControlPage() {
               </p>
               <div className="rounded-lg bg-black/25 p-3 space-y-1.5 font-mono text-[11px] text-foreground">
                 <div>• Pin D7 (GPIO 13): Water Flow Sensor</div>
-                <div>• Pin D5 (GPIO 14): Relay Module (Valve)</div>
+                <div>• Pin D5 (GPIO 14): Valve Relay Module</div>
+                <div>• Pin D2 (GPIO 4): Refill Pump Relay Module</div>
+                <div>• Pin D6 (GPIO 12): Ultrasonic Sensor Trig</div>
+                <div>• Pin D8 (GPIO 15): Ultrasonic Sensor Echo</div>
+                <div>• Pin A0 (ADC0): Dual pH &amp; TDS Analog Probes</div>
                 <div>• Pin D3 (GPIO 0): Push Button (Local Toggle)</div>
               </div>
               <p>
-                The relay module is binary:{" "}
-                <strong className="text-foreground">OPEN (Energized)</strong> or{" "}
-                <strong className="text-foreground">CLOSED (De-energized)</strong>. Proportional /
-                partial positions are not supported by the relay hardware.
+                Both relay modules on D5 and D2 are binary:{" "}
+                <strong className="text-foreground">OPEN / ACTIVE (Energized)</strong> or{" "}
+                <strong className="text-foreground">CLOSED / IDLE (De-energized)</strong>.
               </p>
               <p>
                 When the physical push button on D3 is toggled on the bench, the Wemos immediately
@@ -153,9 +170,13 @@ function ControlPage() {
                 <code className="text-foreground">
                   {pending?.kind === "valve"
                     ? `/nodes/${pending.nodeId}/valveState`
-                    : `/nodes/${pending?.nodeId}/operatingMode`}
+                    : pending?.kind === "pump"
+                      ? `/nodes/${pending.nodeId}/pumpState`
+                      : pending?.kind === "pumpMode"
+                        ? `/nodes/${pending.nodeId}/pumpMode`
+                        : `/nodes/${pending?.nodeId}/operatingMode`}
                 </code>{" "}
-                and actuate the Wemos D1 Mini pin D5.
+                and actuate the Wemos D1 Mini relay pins.
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -167,7 +188,13 @@ function ControlPage() {
                 try {
                   if (pending.kind === "valve") {
                     await setValve(pending.nodeId, pending.state);
-                    toast.success(`Relay commanded to ${pending.state.toUpperCase()}`);
+                    toast.success(`Valve relay commanded to ${pending.state.toUpperCase()}`);
+                  } else if (pending.kind === "pump") {
+                    await setPumpState(pending.nodeId, pending.state);
+                    toast.success(`Refill Pump commanded to ${pending.state.toUpperCase()}`);
+                  } else if (pending.kind === "pumpMode") {
+                    await setPumpMode(pending.nodeId, pending.mode);
+                    toast.success(`Pump operating mode set to ${pending.mode.toUpperCase()}`);
                   } else {
                     await setNodeMode(pending.nodeId, pending.mode);
                     toast.success(`Operating mode set to ${pending.mode.toUpperCase()}`);
@@ -350,6 +377,150 @@ function SingleNodeControlCard({
         <div>
           Manual Override:{" "}
           <strong className="text-foreground">{node.manualOverride ? "Active" : "None"}</strong>
+        </div>
+      </div>
+    </GlassCard>
+  );
+}
+
+function PumpControlCard({
+  node,
+  onAction,
+}: {
+  node: HydraxNode;
+  onAction: (p: Pending) => void;
+}) {
+  const isPumpOn = node.pumpState === "on" || Boolean(node.pumpActive);
+  const isAuto = (node.pumpMode ?? "auto") === "auto";
+  const fillPct = node.tankFillPercent ?? 83.8;
+  const capacity = node.tankCapacityLitres ?? 1000;
+  const volume = node.tankWaterVolumeLitres ?? Number(((fillPct / 100) * capacity).toFixed(1));
+  const startPct = node.pumpStartLevelPercent ?? 20;
+  const stopPct = node.pumpStopLevelPercent ?? 90;
+
+  return (
+    <GlassCard className="border-cyan-500/30 bg-gradient-to-br from-cyan-950/15 via-transparent to-blue-950/15">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/30 pb-4">
+        <div className="flex items-center gap-4">
+          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-lg shadow-cyan-500/10">
+            <Droplets className="h-7 w-7" />
+          </div>
+          <div>
+            <div className="text-xl font-bold">Main Tank Refill Pump</div>
+            <div className="text-xs text-muted-foreground">
+              {node.location} · Relay Pin D2 (GPIO 4) · Sensor Pins D6/D8
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <StatusPill tone={isPumpOn ? "success" : "muted"} pulse={isPumpOn}>
+            Pump: {isPumpOn ? "RUNNING" : "IDLE"}
+          </StatusPill>
+          <StatusPill tone="info">Mode: {isAuto ? "AUTO HYSTERESIS" : "MANUAL"}</StatusPill>
+        </div>
+      </div>
+
+      {/* Direct Pump Actuators */}
+      <div className="mt-5">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-medium">
+          Direct Pump Relay Actuation (Pin D2)
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Button
+            size="lg"
+            variant={isPumpOn ? "outline" : "default"}
+            className="justify-start h-14"
+            disabled={isPumpOn}
+            onClick={() =>
+              onAction({
+                kind: "pump",
+                nodeId: node.id,
+                state: "on",
+                label: `Energize pump relay (START REFILL) on ${node.name}`,
+              })
+            }
+          >
+            <Zap className="mr-3 h-5 w-5 text-emerald-400" />
+            <div className="text-left">
+              <div className="font-semibold">Start Refill Pump</div>
+              <div className="text-[11px] text-muted-foreground">Energize relay on D2</div>
+            </div>
+          </Button>
+
+          <Button
+            size="lg"
+            variant={!isPumpOn ? "outline" : "destructive"}
+            className="justify-start h-14"
+            disabled={!isPumpOn}
+            onClick={() =>
+              onAction({
+                kind: "pump",
+                nodeId: node.id,
+                state: "off",
+                label: `De-energize pump relay (STOP REFILL) on ${node.name}`,
+              })
+            }
+          >
+            <Power className="mr-3 h-5 w-5 text-rose-400" />
+            <div className="text-left">
+              <div className="font-semibold">Stop Refill Pump</div>
+              <div className="text-[11px] text-muted-foreground">De-energize relay on D2</div>
+            </div>
+          </Button>
+        </div>
+      </div>
+
+      {/* Pump Operating Mode Switches */}
+      <div className="mt-5">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-medium">
+          Pump Control Strategy
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Button
+            variant={isAuto ? "default" : "secondary"}
+            className="justify-start h-12"
+            onClick={() =>
+              onAction({
+                kind: "pumpMode",
+                nodeId: node.id,
+                mode: "auto",
+                label: `Switch pump to AUTO HYSTERESIS mode (Refill < ${startPct}%, Cutoff > ${stopPct}%)`,
+              })
+            }
+          >
+            <Wand2 className="mr-2 h-4 w-4" /> Auto Hysteresis ({startPct}%–{stopPct}%)
+          </Button>
+
+          <Button
+            variant={!isAuto ? "default" : "secondary"}
+            className="justify-start h-12"
+            onClick={() =>
+              onAction({
+                kind: "pumpMode",
+                nodeId: node.id,
+                mode: "manual",
+                label: `Switch pump to MANUAL OVERRIDE mode`,
+              })
+            }
+          >
+            <Power className="mr-2 h-4 w-4" /> Manual Operator Control
+          </Button>
+        </div>
+      </div>
+
+      {/* Tank Level Telemetry Summary */}
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-black/20 p-3 text-xs text-muted-foreground">
+        <div>
+          Level: <strong className="text-foreground">{fillPct.toFixed(1)}% ({volume.toFixed(0)} L)</strong>
+        </div>
+        <div>
+          Water Height: <strong className="text-foreground">{(node.tankWaterLevelCm ?? 167.5).toFixed(1)} cm</strong>
+        </div>
+        <div>
+          Air Gap: <strong className="text-foreground">{(node.tankDistanceCm ?? 32.5).toFixed(1)} cm</strong>
+        </div>
+        <div>
+          Status: <strong className="text-cyan-400 font-semibold uppercase">{node.tankStatus ?? "normal"}</strong>
         </div>
       </div>
     </GlassCard>

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import {
@@ -6,9 +6,11 @@ import {
   AlertTriangle,
   Cpu,
   Droplets,
+  FlaskConical,
   Gauge as GaugeIcon,
   Lock,
   Radio,
+  Sliders,
   Timer,
   Unlock,
   Waves,
@@ -22,11 +24,13 @@ import { StatusPill } from "@/components/hydrax/StatusPill";
 import { PageHeader } from "@/components/hydrax/PageHeader";
 import { WaterFlowIcon, ValveIcon } from "@/components/hydrax/WaterFlowIcon";
 import { Button } from "@/components/ui/button";
-import { setValve, useHydrax } from "@/lib/hydrax-store";
+import { getPhStatus, getTdsStatus, setValve, useHydrax } from "@/lib/hydrax-store";
 import { toast } from "sonner";
 import { formatDistanceToNowStrict } from "date-fns";
 import { LiveSyncClock } from "@/components/hydrax/LiveSyncClock";
 import { format12HourTime } from "@/lib/utils";
+import { WaterCorrelationPanel } from "@/components/hydrax/WaterCorrelationPanel";
+import { TankPumpMonitor } from "@/components/hydrax/TankPumpMonitor";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -67,7 +71,12 @@ export function Overview() {
   })();
 
   const isOpen = node?.valveState === "open";
+  const isPumpActive = node?.pumpState === "on" || Boolean(node?.pumpActive);
   const isOnline = Boolean(node?.online);
+  const ph = node?.phValue ?? node?.ph ?? 7.0;
+  const phStatus = getPhStatus(ph);
+  const tds = node?.tdsPpm ?? 0;
+  const tdsStatus = getTdsStatus(tds);
 
   const handleToggleValve = async () => {
     if (!node) return;
@@ -86,12 +95,33 @@ export function Overview() {
 
   const stats = [
     {
-      label: "Live Flow Rate",
-      value: `${(node?.flowRate ?? 0).toFixed(2)}`,
+      label: isOnline ? "Live Flow Rate" : "Flow Rate (Offline)",
+      value: isOnline ? `${(node?.flowRate ?? 0).toFixed(2)}` : "0.00",
       unit: "L/min",
       icon: Waves,
-      accent: "from-primary/30 to-accent/20",
-      caption: "Measured via sensor on pin D7",
+      accent: isOnline ? "from-primary/30 to-accent/20" : "from-muted/20 to-muted/10",
+      caption: isOnline ? "Measured via sensor on pin D7" : "Wemos Standby (Pin D7)",
+    },
+    {
+      label: "Water pH Level",
+      value: `${ph.toFixed(2)}`,
+      unit: "pH",
+      icon: FlaskConical,
+      accent:
+        phStatus.tone === "danger"
+          ? "from-rose-500/30 to-primary/20"
+          : phStatus.tone === "warning"
+            ? "from-amber-500/30 to-primary/20"
+            : "from-emerald-500/30 to-primary/20",
+      caption: `${phStatus.status} (${node?.phVoltage != null ? `${node.phVoltage}V` : "--"} · A0)`,
+    },
+    {
+      label: "TDS Purity",
+      value: `${tds.toFixed(1)}`,
+      unit: "ppm",
+      icon: Droplets,
+      accent: "from-cyan-500/30 to-primary/20",
+      caption: `${tdsStatus.status} (ADC: ${node?.tdsRawADC != null ? node.tdsRawADC : "--"})`,
     },
     {
       label: "Today's Usage",
@@ -107,12 +137,12 @@ export function Overview() {
       unit: isOpen ? "Energized" : "De-energized",
       icon: isOpen ? Unlock : Lock,
       accent: isOpen ? "from-emerald-500/25 to-primary/15" : "from-rose-500/20 to-black/20",
-      caption: "Controlled on pin D5 & push button D3",
+      caption: "Controlled on pin D5 & button D3",
     },
     {
       label: "Operating Mode",
       value: (node?.operatingMode ?? "auto").toUpperCase(),
-      unit: node?.manualOverride ? "(Manual Override)" : "(Automatic)",
+      unit: node?.manualOverride ? "(Manual)" : "(Auto)",
       icon: Cpu,
       accent: "from-sky-400/20 to-primary/10",
       caption: `Active limit: ${currentThreshold} L/min`,
@@ -124,15 +154,27 @@ export function Overview() {
       <PageHeader
         eyebrow="Single-Controller Architecture · Wemos D1 Mini (ESP8266)"
         title="HYDRAXX Smart Water Monitor"
-        description="Real-time water flow telemetry, bi-directional relay control, and physical button synchronisation via Firebase."
+        description="Real-time water flow telemetry, bi-directional relay control, and dual pH & TDS water quality sensing via Firebase."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <LiveSyncClock variant="pill" lastSyncTimestamp={node?.lastUpdate} />
+            <LiveSyncClock variant="pill" lastSyncTimestamp={isOnline ? node?.lastUpdate : undefined} />
             <StatusPill tone={isOnline ? "success" : "danger"} pulse={isOnline}>
               Wemos D1 Mini {isOnline ? "Connected" : "Offline"}
             </StatusPill>
+            <StatusPill tone={phStatus.tone} pulse={phStatus.tone !== "success"}>
+              pH {ph.toFixed(1)} ({phStatus.status})
+            </StatusPill>
+            <StatusPill tone={tdsStatus.tone} pulse={tdsStatus.tone !== "success"}>
+              TDS {tds.toFixed(0)} ppm
+            </StatusPill>
             <StatusPill tone={isOpen ? "success" : "muted"} pulse={isOpen}>
               Relay {isOpen ? "OPEN" : "CLOSED"}
+            </StatusPill>
+            <StatusPill tone={isPumpActive ? "success" : "muted"} pulse={isPumpActive}>
+              Pump {isPumpActive ? "RUNNING" : "OFF"}
+            </StatusPill>
+            <StatusPill tone="info">
+              Tank {(node?.tankFillPercent ?? 83.8).toFixed(0)}%
             </StatusPill>
             {node?.buttonPressed && (
               <StatusPill tone="warning" pulse>
@@ -144,7 +186,7 @@ export function Overview() {
       />
 
       {/* KPI Stats Grid */}
-      <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
         {stats.map((s, i) => (
           <GlassCard key={s.label} transition={{ delay: i * 0.05, duration: 0.35 }}>
             <div className={`absolute inset-0 bg-gradient-to-br ${s.accent} opacity-40`} />
@@ -178,7 +220,7 @@ export function Overview() {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-xs uppercase tracking-wider text-muted-foreground">
-                Live Telemetry Stream
+                {isOnline ? "Live Telemetry Stream" : "Telemetry Stream (Offline)"}
               </div>
               <div className="text-lg font-semibold">
                 Water Flow Rate · {node?.name || "Main Supply Line"}
@@ -186,13 +228,13 @@ export function Overview() {
             </div>
             <div className="flex items-center gap-2">
               <StatusPill tone={isOnline ? "info" : "muted"} pulse={isOnline}>
-                {(node?.flowRate ?? 0).toFixed(2)} L/min
+                {isOnline ? `${(node?.flowRate ?? 0).toFixed(2)} L/min` : "Wemos Standby"}
               </StatusPill>
             </div>
           </div>
 
           <div className="mt-4 h-52 sm:h-64">
-            {data.analytics.liveFlow && data.analytics.liveFlow.length > 0 ? (
+            {isOnline && data.analytics.liveFlow && data.analytics.liveFlow.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data.analytics.liveFlow}>
                   <defs>
@@ -254,10 +296,14 @@ export function Overview() {
             ) : (
               <div className="grid h-full place-items-center rounded-xl border border-dashed border-border/40 p-6 text-center text-muted-foreground">
                 <div>
-                  <Waves className="mx-auto mb-2 h-8 w-8 text-primary/50 animate-pulse" />
-                  <div className="text-sm font-medium">Awaiting Live Telemetry</div>
-                  <div className="text-xs text-muted-foreground">
-                    Connect Wemos D1 Mini to Firebase RTDB to stream sensor pulses on D7.
+                  <Waves className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
+                  <div className="text-sm font-medium text-foreground/80">
+                    {isOnline ? "Awaiting Flow Pulses" : "Wemos Controller Offline"}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1 max-w-sm">
+                    {isOnline
+                      ? "Wemos connected. Water flow sensor on Pin D7 is awaiting pulses."
+                      : "Connect Wemos D1 Mini to Wi-Fi & Firebase RTDB to begin streaming live telemetry."}
                   </div>
                 </div>
               </div>
@@ -320,6 +366,150 @@ export function Overview() {
           </div>
         </GlassCard>
       </div>
+
+      {/* Main Reservoir & Automated Pump Controller (HYDRAXX v0.3.0) */}
+      <div className="mt-4">
+        <TankPumpMonitor node={node} />
+      </div>
+
+      {/* Realtime Water Quality (pH & TDS) Monitoring Banner */}
+      <GlassCard className="mt-4 border-primary/30 bg-gradient-to-br from-primary/10 via-transparent to-accent/10">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-lg shadow-primary/25">
+              <FlaskConical className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-bold">
+                  {isOnline ? "Live Water Quality & Sensor Diagnostics" : "Water Quality & Sensor Diagnostics"}
+                </h3>
+                {isOnline ? (
+                  <span className="rounded-full bg-emerald-500/15 border border-emerald-500/40 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400 flex items-center gap-1.5 shadow-sm shadow-emerald-500/20">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    ESP8266 Live Telemetry
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-rose-500/10 border border-rose-500/30 px-2.5 py-0.5 text-[10px] font-semibold text-rose-300 flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-rose-500/60" />
+                    Wemos Offline · Awaiting Data
+                  </span>
+                )}
+              </div>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Dual probe telemetry: Analog pH sensor and Total Dissolved Solids (TDS) sensor streaming live from Wemos firmware.
+              </p>
+            </div>
+          </div>
+
+          <Link to="/settings">
+            <Button variant="outline" size="sm" className="gap-2">
+              <Sliders className="h-3.5 w-3.5 text-primary" />
+              <span>Calibrate pH in Settings</span>
+            </Button>
+          </Link>
+        </div>
+
+        <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* pH Sensor Card */}
+          <div className="rounded-2xl border border-border/40 bg-black/25 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FlaskConical className={`h-4 w-4 ${phStatus.color}`} />
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Water pH Level
+                </span>
+              </div>
+              <StatusPill tone={phStatus.tone} pulse>
+                {phStatus.status}
+              </StatusPill>
+            </div>
+
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-extrabold tabular-nums text-foreground">
+                {ph.toFixed(2)}
+              </span>
+              <span className="text-xs text-muted-foreground">pH (0.0–14.0)</span>
+              <span className="text-xs font-mono ml-auto text-muted-foreground">
+                {node?.phVoltage ? `${node.phVoltage}V` : "2.57V"} · ADC Pin A0
+              </span>
+            </div>
+
+            {/* Spectrum Bar */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span className="text-rose-400 font-medium">0 (Acidic)</span>
+                <span className="text-emerald-400 font-medium">6.5–8.5 (Safe Tap Range)</span>
+                <span className="text-indigo-400 font-medium">14 (Alkaline)</span>
+              </div>
+              <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-gradient-to-r from-rose-500 via-amber-400 via-emerald-400 to-indigo-600">
+                <div
+                  className="absolute -top-0.5 bottom-0 w-2.5 -translate-x-1/2 rounded-full border-2 border-white bg-black shadow-md transition-all duration-300"
+                  style={{
+                    left: `${Math.max(0, Math.min(100, (ph / 14) * 100))}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground">
+              {phStatus.description}
+            </p>
+          </div>
+
+          {/* TDS Sensor Card */}
+          <div className="rounded-2xl border border-border/40 bg-black/25 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Droplets className={`h-4 w-4 ${tdsStatus.color}`} />
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Total Dissolved Solids (TDS)
+                </span>
+              </div>
+              <StatusPill tone={tdsStatus.tone} pulse>
+                {tdsStatus.status}
+              </StatusPill>
+            </div>
+
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-extrabold tabular-nums text-foreground">
+                {tds.toFixed(1)}
+              </span>
+              <span className="text-xs text-muted-foreground">ppm (mg/L)</span>
+              <span className="text-xs font-mono ml-auto text-muted-foreground">
+                ADC: {node?.tdsRawADC != null ? `${node.tdsRawADC} / 1023` : "--"} ({node?.tdsVoltage != null ? `${node.tdsVoltage}V` : "--"})
+              </span>
+            </div>
+
+            {/* TDS Level Indicator */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span className="text-emerald-400 font-medium">0–50 Pure RO</span>
+                <span className="text-cyan-400">50–150 Good</span>
+                <span className="text-sky-400">150–300 Fair</span>
+                <span className="text-rose-400">&gt;500 Limit</span>
+              </div>
+              <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-gradient-to-r from-emerald-400 via-cyan-400 via-sky-400 to-rose-500">
+                <div
+                  className="absolute -top-0.5 bottom-0 w-2.5 -translate-x-1/2 rounded-full border-2 border-white bg-black shadow-md transition-all duration-300"
+                  style={{
+                    left: `${Math.max(0, Math.min(100, (tds / 500) * 100))}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground">
+              {tdsStatus.grade}: {tdsStatus.description}
+            </p>
+          </div>
+        </div>
+
+        {/* Real-time Water Quality Correlation & Waterborne Pathogen Risk Analysis */}
+        <div className="mt-5 border-t border-border/40 pt-5">
+          <WaterCorrelationPanel ph={ph} tds={tds} showDetailsByDefault={false} />
+        </div>
+      </GlassCard>
 
       {/* Thresholds, Hardware Diagnostics, & Usage Row */}
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -384,6 +574,22 @@ export function Overview() {
             <Row
               label="Push Button"
               value={node?.buttonPressed ? "PRESSED (D3)" : "IDLE (Pin D3)"}
+            />
+            <Row
+              label="pH Sensor (A0)"
+              value={
+                <span className="font-mono text-emerald-400">
+                  {ph.toFixed(2)} pH ({node?.phVoltage != null ? `${node.phVoltage}V` : "--"})
+                </span>
+              }
+            />
+            <Row
+              label="TDS Sensor (A0)"
+              value={
+                <span className="font-mono text-cyan-400">
+                  {tds.toFixed(1)} ppm (ADC: {node?.tdsRawADC != null ? node.tdsRawADC : "--"})
+                </span>
+              }
             />
             <Row label="Wi-Fi Signal" value={node?.signal ? `${node.signal}%` : "—"} />
             <Row label="Uptime" value={node?.uptimeSec ? formatUptime(node.uptimeSec) : "—"} />
@@ -460,11 +666,10 @@ function Row({
 }) {
   return (
     <div
-      className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
-        highlight
-          ? "border border-primary/40 bg-primary/10 text-primary-foreground font-semibold"
-          : "bg-black/15 text-foreground"
-      }`}
+      className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${highlight
+        ? "border border-primary/40 bg-primary/10 text-primary-foreground font-semibold"
+        : "bg-black/15 text-foreground"
+        }`}
     >
       <span className={highlight ? "text-primary" : "text-muted-foreground"}>{label}</span>
       <span>{value}</span>

@@ -11,6 +11,7 @@ import { alertTypeLabel, resolveAlert, severityColor, useHydrax } from "@/lib/hy
 import type { AlertItem, AlertSeverity } from "@/lib/hydrax-types";
 import { exportCSV } from "@/lib/export";
 import { LiveSyncClock } from "@/components/hydrax/LiveSyncClock";
+import { WaterCorrelationPanel } from "@/components/hydrax/WaterCorrelationPanel";
 
 export const Route = createFileRoute("/alerts")({
   head: () => ({
@@ -32,6 +33,9 @@ function AlertsPage() {
   const [sev, setSev] = useState<AlertSeverity | "all">("all");
   const active = data.alerts.active.filter((a) => sev === "all" || a.severity === sev);
   const history = data.alerts.history.filter((a) => sev === "all" || a.severity === sev);
+  const node = data.nodes.testNode || Object.values(data.nodes)[0];
+  const currentPh = node?.phValue ?? node?.ph ?? 7.0;
+  const currentTds = node?.tdsPpm ?? 0;
 
   return (
     <div>
@@ -93,6 +97,19 @@ function AlertsPage() {
             onResolve={() => resolveAlert(a.id).then(() => toast.success("Alert resolved"))}
           />
         ))}
+      </div>
+
+      {/* Pathogen Awareness Monitor & Hydrochemical Anomaly Surveillance */}
+      <div className="my-8">
+        <div className="mb-3 text-xs uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+          <span>Pathogen Surveillance &amp; Chemical Anomaly Monitor</span>
+          <span className="text-[11px] text-cyan-400 font-mono">Live Telemetry Analysis</span>
+        </div>
+        <WaterCorrelationPanel
+          ph={currentPh}
+          tds={currentTds}
+          showDetailsByDefault={true}
+        />
       </div>
 
       <div className="mb-3 mt-6 text-xs uppercase tracking-wider text-muted-foreground">

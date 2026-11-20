@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Activity, Cpu, MapPin, Radio, Signal, Timer, Zap } from "lucide-react";
+import { Activity, Cpu, Droplets, FlaskConical, MapPin, Radio, Signal, Timer, Zap } from "lucide-react";
 import { GlassCard } from "@/components/hydrax/GlassCard";
 import { PageHeader } from "@/components/hydrax/PageHeader";
 import { StatusPill } from "@/components/hydrax/StatusPill";
@@ -74,12 +74,24 @@ function NodesPage() {
                 <strong className="text-foreground">Pin D7 (GPIO 13)</strong>
               </div>
               <div className="flex justify-between py-1 border-b border-border/30">
-                <span>Relay Module Pin:</span>
+                <span>Valve Relay Pin:</span>
                 <strong className="text-foreground">Pin D5 (GPIO 14)</strong>
+              </div>
+              <div className="flex justify-between py-1 border-b border-border/30">
+                <span>Refill Pump Relay Pin:</span>
+                <strong className="text-foreground">Pin D2 (GPIO 4)</strong>
+              </div>
+              <div className="flex justify-between py-1 border-b border-border/30">
+                <span>Ultrasonic Level Sensor:</span>
+                <strong className="text-foreground">Pins D6 (Trig) / D8 (Echo)</strong>
               </div>
               <div className="flex justify-between py-1 border-b border-border/30">
                 <span>Push Button Pin:</span>
                 <strong className="text-foreground">Pin D3 (GPIO 0)</strong>
+              </div>
+              <div className="flex justify-between py-1 border-b border-border/30">
+                <span>pH & TDS Sensor ADC:</span>
+                <strong className="text-foreground">Pin A0 (Analog ADC0)</strong>
               </div>
               <div className="flex justify-between py-1">
                 <span>Database Path:</span>
@@ -95,16 +107,63 @@ function NodesPage() {
             </div>
             <div className="mt-3 space-y-2 text-xs text-muted-foreground">
               <div className="rounded-lg bg-black/20 p-2.5">
+                <div className="text-foreground font-medium flex items-center justify-between">
+                  <span>pH Sensor (Pin A0):</span>
+                  <span className="text-emerald-400 font-bold">
+                    {(primaryNode?.phValue ?? primaryNode?.ph ?? 6.6).toFixed(2)} pH
+                  </span>
+                </div>
+                <div className="text-[11px] mt-0.5">
+                  Voltage: {primaryNode?.phVoltage != null ? `${primaryNode.phVoltage}V` : "--"} · Active
+                </div>
+              </div>
+              <div className="rounded-lg bg-black/20 p-2.5">
+                <div className="text-foreground font-medium flex items-center justify-between">
+                  <span>TDS Sensor (Pin A0):</span>
+                  <span className="text-cyan-400 font-bold">
+                    {(primaryNode?.tdsPpm ?? 0).toFixed(1)} ppm
+                  </span>
+                </div>
+                <div className="text-[11px] mt-0.5">
+                  ADC: {primaryNode?.tdsRawADC != null ? primaryNode.tdsRawADC : "--"} ({primaryNode?.tdsVoltage != null ? `${primaryNode.tdsVoltage}V` : "--"}) · {primaryNode?.tdsStatus || "monitoring"}
+                </div>
+              </div>
+              <div className="rounded-lg bg-black/20 p-2.5">
+                <div className="text-foreground font-medium flex items-center justify-between">
+                  <span>Tank Reservoir (Pins D6/D8):</span>
+                  <span className="text-cyan-400 font-bold">
+                    {(primaryNode?.tankFillPercent ?? 83.8).toFixed(1)}% (
+                    {(primaryNode?.tankWaterVolumeLitres ?? 837.5).toFixed(0)}L)
+                  </span>
+                </div>
+                <div className="text-[11px] mt-0.5">
+                  Height: {(primaryNode?.tankWaterLevelCm ?? 167.5).toFixed(1)}cm · Gap:{" "}
+                  {(primaryNode?.tankDistanceCm ?? 32.5).toFixed(1)}cm ·{" "}
+                  <span className="uppercase text-cyan-300 font-semibold">
+                    {primaryNode?.tankStatus ?? "normal"}
+                  </span>
+                </div>
+              </div>
+              <div className="rounded-lg bg-black/20 p-2.5">
+                <div className="text-foreground font-medium flex items-center justify-between">
+                  <span>Refill Pump (Pin D2):</span>
+                  <span
+                    className={`font-bold uppercase ${
+                      primaryNode?.pumpState === "on" ? "text-emerald-400" : "text-muted-foreground"
+                    }`}
+                  >
+                    {primaryNode?.pumpState === "on" ? "Active (Running)" : "Idle (Standby)"}
+                  </span>
+                </div>
+                <div className="text-[11px] mt-0.5">
+                  Mode: {(primaryNode?.pumpMode ?? "auto").toUpperCase()} · Start: &lt;
+                  {primaryNode?.pumpStartLevelPercent ?? 20}% · Stop: &gt;
+                  {primaryNode?.pumpStopLevelPercent ?? 90}%
+                </div>
+              </div>
+              <div className="rounded-lg bg-black/20 p-2.5">
                 <div className="text-foreground font-medium">Battery Level:</div>
                 <div className="text-[11px]">USB Powered — No battery sensor connected.</div>
-              </div>
-              <div className="rounded-lg bg-black/20 p-2.5">
-                <div className="text-foreground font-medium">Temperature:</div>
-                <div className="text-[11px]">No temperature sensor connected to Wemos.</div>
-              </div>
-              <div className="rounded-lg bg-black/20 p-2.5">
-                <div className="text-foreground font-medium">Leak Detection AI:</div>
-                <div className="text-[11px]">Awaiting local / cloud risk model evaluation.</div>
               </div>
             </div>
           </GlassCard>
@@ -141,8 +200,18 @@ function NodeDetailCard({ node }: { node: HydraxNode }) {
         </div>
 
         {/* Primary Metrics Grid */}
-        <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <Metric label="Flow Rate" value={`${node.flowRate.toFixed(2)}`} unit="L/min" />
+          <Metric
+            label="Water pH"
+            value={`${(node.phValue ?? node.ph ?? 7.0).toFixed(2)}`}
+            unit="pH"
+          />
+          <Metric
+            label="TDS Purity"
+            value={`${(node.tdsPpm ?? 0).toFixed(1)}`}
+            unit="ppm"
+          />
           <Metric label="Active Ceiling" value={`${node.threshold}`} unit="L/min" />
           <Metric label="Today's Litres" value={`${node.todayUsage.toFixed(2)}`} unit="L" />
           <Metric label="WiFi Quality" value={node.signal ? `${node.signal}%` : "—"} unit="" />
@@ -154,7 +223,7 @@ function NodeDetailCard({ node }: { node: HydraxNode }) {
             <ValveIcon open={isOpen} size={48} />
             <div>
               <div className="text-xs uppercase tracking-wider text-muted-foreground">
-                Relay Module (D5)
+                Valve Relay (D5)
               </div>
               <div className="text-base font-bold capitalize text-foreground">
                 {node.valveState}
@@ -174,6 +243,46 @@ function NodeDetailCard({ node }: { node: HydraxNode }) {
               </div>
               <div className="text-[11px] text-muted-foreground">
                 {node.manualOverride ? "Manual Override Active" : "Automatic Control"}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tank Reservoir and Pump Panel (HYDRAXX v0.3.0) */}
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-2xl border border-cyan-500/30 bg-cyan-950/15 p-4">
+          <div className="flex items-center gap-3">
+            <div className="grid h-12 w-12 place-items-center rounded-xl bg-cyan-500/20 text-cyan-400">
+              <Droplets className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                Reservoir Level (D6/D8)
+              </div>
+              <div className="text-base font-bold text-foreground">
+                {(node.tankFillPercent ?? 83.8).toFixed(1)}% ·{" "}
+                {(node.tankWaterVolumeLitres ?? 837.5).toFixed(0)}L
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                Height: {(node.tankWaterLevelCm ?? 167.5).toFixed(1)}cm · Gap:{" "}
+                {(node.tankDistanceCm ?? 32.5).toFixed(1)}cm
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center justify-between sm:justify-end gap-6 sm:border-l sm:border-border/30 sm:pl-6">
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                Refill Pump (D2)
+              </div>
+              <div className="text-base font-bold uppercase text-foreground flex items-center gap-2">
+                <span
+                  className={`h-2.5 w-2.5 rounded-full ${
+                    node.pumpState === "on" ? "bg-emerald-400 animate-pulse" : "bg-muted-foreground/60"
+                  }`}
+                />
+                {node.pumpState === "on" ? "RUNNING" : "STANDBY"}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {(node.pumpMode ?? "auto").toUpperCase()} Hysteresis Refill
               </div>
             </div>
           </div>
