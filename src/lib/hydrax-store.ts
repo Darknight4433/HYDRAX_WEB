@@ -433,11 +433,11 @@ function bindFirebase() {
                 ? Number(raw.tankStartingVolumeLitres)
                 : (snapshot.nodes[k]?.tankStartingVolumeLitres ?? 1.00),
             tankDistanceCm:
-              typeof raw.tankDistanceCm === "number" && raw.tankDistanceCm > 0
+              typeof raw.tankDistanceCm === "number" && raw.tankDistanceCm >= 0
                 ? Number(raw.tankDistanceCm)
                 : (snapshot.nodes[k]?.tankDistanceCm ?? 2.0),
             tankWaterLevelCm:
-              typeof raw.tankWaterLevelCm === "number" && raw.tankWaterLevelCm > 0
+              typeof raw.tankWaterLevelCm === "number" && raw.tankWaterLevelCm >= 0
                 ? Number(raw.tankWaterLevelCm)
                 : (snapshot.nodes[k]?.tankWaterLevelCm ?? 10.8),
             tankCapacityLitres:
@@ -445,11 +445,11 @@ function bindFirebase() {
                 ? Number(raw.tankCapacityLitres)
                 : TANK_TOTAL_CAPACITY_LITRES,
             tankWaterVolumeLitres:
-              typeof raw.tankWaterVolumeLitres === "number" && raw.tankWaterVolumeLitres > 0
+              typeof raw.tankWaterVolumeLitres === "number" && raw.tankWaterVolumeLitres >= 0
                 ? Number(raw.tankWaterVolumeLitres)
                 : (snapshot.nodes[k]?.tankWaterVolumeLitres ?? 1.00),
             tankFillPercent:
-              typeof raw.tankFillPercent === "number" && raw.tankFillPercent > 0
+              typeof raw.tankFillPercent === "number" && raw.tankFillPercent >= 0
                 ? Number(raw.tankFillPercent)
                 : (snapshot.nodes[k]?.tankFillPercent ?? 80.9),
             tankStatus:
