@@ -33,6 +33,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { setNodeMode, setPumpMode, setPumpState, setValve, useHydrax } from "@/lib/hydrax-store";
+import { formatWaterVolume } from "@/lib/utils";
 import type {
   HydraxNode,
   OperatingMode,
@@ -511,7 +512,7 @@ function PumpControlCard({
       {/* Tank Level Telemetry Summary */}
       <div className="mt-6 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-black/20 p-3 text-xs text-muted-foreground">
         <div>
-          Level: <strong className="text-foreground">{fillPct.toFixed(1)}% ({volume.toFixed(0)} L)</strong>
+          Level: <strong className="text-foreground">{fillPct.toFixed(1)}% ({formatWaterVolume(volume).formatted})</strong>
         </div>
         <div>
           Water Height: <strong className="text-foreground">{(node.tankWaterLevelCm ?? 167.5).toFixed(1)} cm</strong>

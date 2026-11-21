@@ -55,7 +55,7 @@ import {
   useHydrax,
 } from "@/lib/hydrax-store";
 import { LiveSyncClock } from "@/components/hydrax/LiveSyncClock";
-import { format12HourTime } from "@/lib/utils";
+import { format12HourTime, formatWaterVolume } from "@/lib/utils";
 import { formatDistanceToNowStrict } from "date-fns";
 import { Capacitor } from "@capacitor/core";
 
@@ -310,7 +310,7 @@ function SettingsPage() {
                   <span>Manual Tank Level Calibration</span>
                 </div>
                 <StatusPill tone="info">
-                  {activeTankPct.toFixed(1)}% ({previewTankVol.toFixed(2)}L)
+                  {activeTankPct.toFixed(1)}% ({formatWaterVolume(previewTankVol).formatted})
                 </StatusPill>
               </div>
 
@@ -353,7 +353,7 @@ function SettingsPage() {
                     <div className="h-4 w-4 rounded-full bg-cyan-400 shadow-cyan-400/80 shadow-md animate-pulse" />
 
                     <div className="absolute -top-9 px-2.5 py-0.5 rounded-md text-[10px] font-bold font-mono shadow-xl whitespace-nowrap border border-cyan-400/50 bg-cyan-950/95 text-cyan-200 pointer-events-none">
-                      {activeTankPct.toFixed(1)}% · {previewTankVol.toFixed(2)}L ({previewWaterMm}mm)
+                      {activeTankPct.toFixed(1)}% · {formatWaterVolume(previewTankVol).formatted} ({previewWaterMm}mm)
                       <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-cyan-950/95" />
                     </div>
                   </SliderPrimitive.Thumb>
@@ -366,12 +366,12 @@ function SettingsPage() {
                   Presets:
                 </span>
                 {[
-                  { label: "100% Full", val: 100 },
-                  { label: "85% Normal", val: 85 },
-                  { label: "70% Storage", val: 70 },
-                  { label: "50% Half", val: 50 },
-                  { label: "25% Low", val: 25 },
-                  { label: "0% Empty", val: 0 },
+                  { label: "100% Full (1.24 L)", val: 100 },
+                  { label: "85% Normal (1.05 L)", val: 85 },
+                  { label: "70% Storage (870 mL)", val: 70 },
+                  { label: "50% Half (620 mL)", val: 50 },
+                  { label: "25% Low (310 mL)", val: 25 },
+                  { label: "0% Empty (0 mL)", val: 0 },
                 ].map((preset) => (
                   <button
                     key={preset.val}
@@ -511,10 +511,10 @@ function SettingsPage() {
                 <div>
                   <div className="text-[10px] text-muted-foreground">Water Volume</div>
                   <div className="font-mono font-bold text-foreground text-sm mt-0.5">
-                    {(node?.tankWaterVolumeLitres ?? 1.00).toFixed(2)} L
+                    {formatWaterVolume(node?.tankWaterVolumeLitres ?? 1.00).formatted}
                   </div>
                   <div className="text-[9px] text-muted-foreground mt-0.5">
-                    {Math.round((node?.tankWaterVolumeLitres ?? 1.00) * 1000)} mL of 1236 mL
+                    {formatWaterVolume(node?.tankWaterVolumeLitres ?? 1.00).formatted} of 1236 mL
                   </div>
                 </div>
               </div>

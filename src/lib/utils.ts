@@ -34,3 +34,28 @@ export function format12HourTime(
 
   return timeStr;
 }
+
+/**
+ * Formats water volume: shows milliliters (mL) when under 1.0 Litre,
+ * and Litres (L) only once it reaches or exceeds 1.0 Litre.
+ */
+export function formatWaterVolume(litres: number | null | undefined): {
+  value: string;
+  unit: string;
+  formatted: string;
+} {
+  const val = typeof litres === "number" && !isNaN(litres) ? Math.max(0, litres) : 0;
+  if (val >= 1.0) {
+    return {
+      value: val.toFixed(2),
+      unit: "L",
+      formatted: `${val.toFixed(2)} L`,
+    };
+  }
+  const ml = Math.round(val * 1000);
+  return {
+    value: String(ml),
+    unit: "mL",
+    formatted: `${ml} mL`,
+  };
+}

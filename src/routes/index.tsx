@@ -28,7 +28,7 @@ import { getPhStatus, getTdsStatus, setValve, useHydrax } from "@/lib/hydrax-sto
 import { toast } from "sonner";
 import { formatDistanceToNowStrict } from "date-fns";
 import { LiveSyncClock } from "@/components/hydrax/LiveSyncClock";
-import { format12HourTime } from "@/lib/utils";
+import { format12HourTime, formatWaterVolume } from "@/lib/utils";
 import { WaterCorrelationPanel } from "@/components/hydrax/WaterCorrelationPanel";
 import { TankPumpMonitor } from "@/components/hydrax/TankPumpMonitor";
 
@@ -125,8 +125,8 @@ export function Overview() {
     },
     {
       label: "Today's Usage",
-      value: `${(node?.todayUsage ?? 0).toFixed(2)}`,
-      unit: "Litres",
+      value: formatWaterVolume(node?.todayUsage ?? 0).value,
+      unit: formatWaterVolume(node?.todayUsage ?? 0).unit,
       icon: Droplets,
       accent: "from-accent/30 to-primary/20",
       caption: "Calculated actual consumption",
@@ -619,7 +619,7 @@ export function Overview() {
                 Consumption Tracking
               </div>
               <div className="text-lg font-semibold">
-                {(node?.todayUsage ?? 0).toFixed(2)} L Today
+                {formatWaterVolume(node?.todayUsage ?? 0).formatted} Today
               </div>
             </div>
           </div>
@@ -627,21 +627,23 @@ export function Overview() {
             <div className="rounded-lg bg-black/20 p-3">
               <div className="text-xs text-muted-foreground">Today's Total</div>
               <div className="text-lg font-bold text-foreground">
-                {(node?.todayUsage ?? 0).toFixed(2)}{" "}
-                <span className="text-xs font-normal text-muted-foreground">Litres</span>
+                {formatWaterVolume(node?.todayUsage ?? 0).value}{" "}
+                <span className="text-xs font-normal text-muted-foreground">
+                  {formatWaterVolume(node?.todayUsage ?? 0).unit}
+                </span>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-lg bg-black/20 p-3">
                 <div className="text-xs text-muted-foreground">This Week</div>
                 <div className="text-sm font-semibold">
-                  {node?.weeklyUsage ? `${node.weeklyUsage.toFixed(1)} L` : "Tracking..."}
+                  {node?.weeklyUsage ? formatWaterVolume(node.weeklyUsage).formatted : "Tracking..."}
                 </div>
               </div>
               <div className="rounded-lg bg-black/20 p-3">
                 <div className="text-xs text-muted-foreground">This Month</div>
                 <div className="text-sm font-semibold">
-                  {node?.monthlyUsage ? `${node.monthlyUsage.toFixed(1)} L` : "Tracking..."}
+                  {node?.monthlyUsage ? formatWaterVolume(node.monthlyUsage).formatted : "Tracking..."}
                 </div>
               </div>
             </div>

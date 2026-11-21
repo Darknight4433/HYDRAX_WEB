@@ -33,6 +33,7 @@ import {
 } from "@/lib/hydrax-store";
 import type { HydraxNode } from "@/lib/hydrax-types";
 import { toast } from "sonner";
+import { formatWaterVolume } from "@/lib/utils";
 
 interface TankPumpMonitorProps {
   node?: HydraxNode | null;
@@ -252,7 +253,7 @@ export function TankPumpMonitor({
                   {fillPct.toFixed(1)}%
                 </div>
                 <div className="text-[10px] font-medium text-white/90 mt-0.5">
-                  {volume.toFixed(2)} L ({Math.round(volume * 1000)} mL)
+                  {formatWaterVolume(volume).formatted}
                 </div>
               </div>
             </div>
@@ -293,9 +294,16 @@ export function TankPumpMonitor({
                 Water Stored
               </div>
               <div className="mt-1 text-lg sm:text-xl font-bold font-mono text-emerald-400">
-                {volume.toFixed(2)} <span className="text-xs font-normal text-muted-foreground">L</span>
+                {formatWaterVolume(volume).value}{" "}
+                <span className="text-xs font-normal text-muted-foreground">
+                  {formatWaterVolume(volume).unit}
+                </span>
               </div>
-              <div className="text-[10px] text-muted-foreground">{Math.round(volume * 1000)} mL of {capacity.toFixed(2)}L</div>
+              <div className="text-[10px] text-muted-foreground">
+                {volume < 1.0
+                  ? `${Math.round(volume * 1000)} mL of 1236 mL`
+                  : `${volume.toFixed(2)} L of ${capacity.toFixed(2)} L`}
+              </div>
             </div>
 
             {/* Level Decrease Rate Tile */}
