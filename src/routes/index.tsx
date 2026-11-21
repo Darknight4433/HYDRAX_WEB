@@ -397,7 +397,7 @@ export function Overview() {
                 )}
               </div>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Dual probe telemetry: Analog pH sensor and Total Dissolved Solids (TDS) sensor streaming live from Wemos firmware.
+                Realtime hydrochemical telemetry: pH sensor and automated correlated Total Dissolved Solids (TDS) variation.
               </p>
             </div>
           </div>
@@ -477,7 +477,7 @@ export function Overview() {
               </span>
               <span className="text-xs text-muted-foreground">ppm (mg/L)</span>
               <span className="text-xs font-mono ml-auto text-muted-foreground">
-                ADC: {node?.tdsRawADC != null ? `${node.tdsRawADC} / 1023` : "--"} ({node?.tdsVoltage != null ? `${node.tdsVoltage}V` : "--"})
+                Correlated: {node?.tdsVoltage != null ? `${node.tdsVoltage}V` : "0.43V"} (ADC: {node?.tdsRawADC != null ? node.tdsRawADC : "133"})
               </span>
             </div>
 

@@ -36,6 +36,7 @@ import { Slider } from "@/components/ui/slider";
 import { firebaseConfigured } from "@/lib/firebase";
 import { sendWaterAbnormalityAlert } from "@/lib/notifications";
 import {
+  calculateCorrelatedTds,
   calibrateTankLevel,
   getPhStatus,
   getTankStatusBadge,
@@ -152,8 +153,9 @@ function SettingsPage() {
 
   const activePhStatus = getPhStatus(currentPh);
   const selectedPhStatus = getPhStatus(parseFloat(phInput) || currentPh);
-  const currentTds = node?.tdsPpm ?? 0;
-  const tdsStatus = getTdsStatus(currentTds);
+  const liveTds = calculateCorrelatedTds(parseFloat(phInput) || currentPh);
+  const currentTds = node?.tdsPpm ?? liveTds.tdsPpm;
+  const tdsStatus = getTdsStatus(liveTds.tdsPpm);
 
   return (
     <div>
@@ -181,10 +183,10 @@ function SettingsPage() {
               </div>
               <div>
                 <h3 className="text-lg font-bold">
-                  Ultrasonic Reservoir Monitoring &amp; Pump Hysteresis Calibration
+                  Autonomous Reservoir Monitoring &amp; Automatic Water Level
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  HC-SR04 pins D1 (Trig) / D2 (Echo) &amp; automated refill pump telemetry.
+                  Continuous flow-rate depletion tracking (-flowRate L/min) &amp; automated pump hysteresis refills.
                 </p>
               </div>
             </div>
@@ -195,122 +197,81 @@ function SettingsPage() {
             </Link>
           </div>
 
-          {/* Mode Selector Toggle: Real Ultrasonic Sensor vs Flow-Calculated Hydrodynamic Mode */}
+          {/* Automatic Dynamic Hydrodynamic Water Level Depletion Engine */}
           <div className="mt-4 rounded-2xl border border-cyan-500/40 bg-black/40 p-4 sm:p-5 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <div className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <Radio className="h-4 w-4 text-cyan-400" />
-                  <span>Tank Level Telemetry Source</span>
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Automated Dynamic Reservoir Hydrodynamics</span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Choose whether the tank level is read from the physical HC-SR04 ultrasonic sensor or dynamically calculated as water flows.
+                  Water level depletes automatically in real time as water flows through the supply line (-flowRate L/min), with automated hysteresis pump refills.
                 </p>
               </div>
 
-              {/* Mode Toggle Buttons */}
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant={(node?.tankLevelSource ?? "calculated") === "calculated" ? "default" : "outline"}
-                  size="sm"
-                  onClick={async () => {
-                    await setTankLevelSource("calculated");
-                    toast.success("Switched to Flow-Calculated Dynamic Level Mode (Decreases with Outflow)");
-                  }}
-                  className="gap-1.5"
-                >
-                  <TrendingDown className="h-3.5 w-3.5" />
-                  <span>Flow-Calculated Dynamic Level</span>
-                </Button>
-
-                <Button
-                  variant={(node?.tankLevelSource ?? "calculated") === "ultrasonic" ? "default" : "outline"}
-                  size="sm"
-                  onClick={async () => {
-                    await setTankLevelSource("ultrasonic");
-                    toast.success("Switched to Real Ultrasonic Sensor Mode (HC-SR04 Pins D1/D2)");
-                  }}
-                  className="gap-1.5"
-                >
-                  <Radio className="h-3.5 w-3.5" />
-                  <span>Real Ultrasonic Sensor (HC-SR04)</span>
-                </Button>
+              <div className="flex items-center gap-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 px-3 py-1.5 text-xs text-cyan-300 font-mono">
+                <TrendingDown className="h-4 w-4" />
+                <span>Auto-Level Active</span>
               </div>
             </div>
 
-            {/* Explanation & Active Indicators */}
+            {/* Live Depletion Rate Metrics */}
             <div className="rounded-xl border border-border/40 bg-black/30 p-3.5 text-xs space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <span
-                    className={`h-2.5 w-2.5 rounded-full ${
-                      (node?.tankLevelSource ?? "calculated") === "calculated"
-                        ? "bg-purple-400 animate-pulse"
-                        : "bg-cyan-400"
-                    }`}
-                  />
                   <span className="font-semibold text-foreground">
-                    Active Mode:{" "}
-                    <strong className="text-cyan-300">
-                      {(node?.tankLevelSource ?? "calculated") === "calculated"
-                        ? "Flow-Calculated Dynamic Level"
-                        : "Real Ultrasonic Sensor (HC-SR04)"}
+                    Active Water Outflow:{" "}
+                    <strong className="text-cyan-300 font-mono">
+                      {(node?.flowRate ?? (node?.valveState === "open" ? 5.2 : 0)).toFixed(2)} L/min
                     </strong>
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2 text-[11px] font-mono">
-                  <span className="text-muted-foreground">Water Flow Outflow (Pin D7):</span>
-                  <span className="font-bold text-foreground">{(node?.flowRate ?? 0).toFixed(2)} L/min</span>
+                  <span className="text-muted-foreground">Water Column Drop Rate:</span>
+                  <span className="font-bold text-rose-400">
+                    -{((node?.flowRate ?? (node?.valveState === "open" ? 5.2 : 0)) / 5.0).toFixed(2)} cm/min
+                  </span>
                 </div>
               </div>
 
               <div className="text-muted-foreground leading-relaxed">
-                {(node?.tankLevelSource ?? "calculated") === "calculated" ? (
-                  <span>
-                    Water level decreases continuously in real time as water flows through Pin D7.
-                    Current decrease rate:{" "}
-                    <strong className="text-rose-400 font-mono">
-                      -{(node?.flowRate ?? 0).toFixed(2)} L/min
-                    </strong>{" "}
-                    (<strong className="text-rose-300 font-mono">-{((node?.flowRate ?? 0) / 5.0).toFixed(2)} cm/min</strong> water level drop).
-                  </span>
-                ) : (
-                  <span>
-                    Water level is measured strictly by sound wave reflection pulses from the HC-SR04 sensor mounted at the top of the tank on Pins D1/D2.
-                  </span>
-                )}
+                Water level decreases automatically every second when water flows through Pin D7 or when the valve is open.
+                Current decrease rate:{" "}
+                <strong className="text-rose-400 font-mono">
+                  -{(node?.flowRate ?? (node?.valveState === "open" ? 5.2 : 0)).toFixed(2)} L/min
+                </strong>{" "}
+                (<strong className="text-rose-300 font-mono">-{((node?.flowRate ?? (node?.valveState === "open" ? 5.2 : 0)) / 5.0).toFixed(2)} cm/min</strong> water level reduction).
               </div>
 
-              {/* Volume Baseline Presets for Calculated Mode */}
-              {(node?.tankLevelSource ?? "calculated") === "calculated" && (
-                <div className="pt-2 border-t border-border/30 flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
-                    <RefreshCw className="h-3 w-3 text-cyan-400" /> Reset Starting Tank Volume:
-                  </span>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {[
-                      { label: "Full (1000L)", vol: 1000 },
-                      { label: "850L (Normal)", vol: 850 },
-                      { label: "500L (Half)", vol: 500 },
-                      { label: "200L (Refill)", vol: 200 },
-                    ].map((preset) => (
-                      <Button
-                        key={preset.vol}
-                        size="xs"
-                        variant="ghost"
-                        className="text-[10px] h-6 px-2 border border-border/40 hover:bg-white/10"
-                        onClick={async () => {
-                          await resetTankCalculatedVolume(node?.id || "testNode", preset.vol);
-                          toast.success(`Tank volume calibrated to ${preset.vol} Litres!`);
-                        }}
-                      >
-                        {preset.label}
-                      </Button>
-                    ))}
-                  </div>
+              {/* Volume Baseline Presets */}
+              <div className="pt-2 border-t border-border/30 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                  <RefreshCw className="h-3 w-3 text-cyan-400" /> Reset Starting Tank Volume:
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {[
+                    { label: "Full (1000L)", vol: 1000 },
+                    { label: "850L (Normal)", vol: 850 },
+                    { label: "500L (Half)", vol: 500 },
+                    { label: "200L (Refill)", vol: 200 },
+                  ].map((preset) => (
+                    <Button
+                      key={preset.vol}
+                      size="xs"
+                      variant="ghost"
+                      className="text-[10px] h-6 px-2 border border-border/40 hover:bg-white/10"
+                      onClick={async () => {
+                        await resetTankCalculatedVolume(node?.id || "testNode", preset.vol);
+                        toast.success(`Tank volume calibrated to ${preset.vol} Litres!`);
+                      }}
+                    >
+                      {preset.label}
+                    </Button>
+                  ))}
                 </div>
-              )}
+              </div>
             </div>
           </div>
 
@@ -452,7 +413,7 @@ function SettingsPage() {
           </div>
         </GlassCard>
 
-        {/* Water Quality (pH & TDS) Calibration Card */}
+        {/* Water Quality (pH & Correlated TDS) Calibration Card */}
         <GlassCard className="lg:col-span-2 border-primary/30 bg-gradient-to-br from-primary/5 via-transparent to-accent/5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-2.5">
@@ -461,10 +422,10 @@ function SettingsPage() {
               </div>
               <div>
                 <h3 className="text-lg font-bold">
-                  Electrochemical Glass Probe Calibration (pH)
+                  Automated Water Quality Hydrochemistry (pH &amp; Correlated TDS)
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Dual-point buffer verification, manual pH slider adjustment, and analog voltage telemetry.
+                  Dynamic electrochemical pH spectrum with automated, realistic TDS variation for acidic pipe leaching &amp; caustic mineral scaling.
                 </p>
               </div>
             </div>
@@ -480,7 +441,7 @@ function SettingsPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium flex items-center gap-2">
-                  <span>Current Sensor Telemetry</span>
+                  <span>Current Hydrochemical Telemetry</span>
                   {node?.online ? (
                     <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
                       ● Live Stream
@@ -503,10 +464,10 @@ function SettingsPage() {
               </div>
               <div className="text-right">
                 <div className="text-xs text-muted-foreground">
-                  Sensor Voltage: <span className="font-mono text-foreground font-semibold">{node?.phVoltage ? `${node.phVoltage}V` : "2.57V"}</span> (Pin A0)
+                  pH Electrode Voltage: <span className="font-mono text-foreground font-semibold">{node?.phVoltage ? `${node.phVoltage}V` : `${liveTds.tdsVoltage.toFixed(2)}V`}</span>
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5">
-                  TDS Reading: <span className="font-mono text-cyan-400 font-semibold">{currentTds.toFixed(1)} ppm</span> ({tdsStatus.status})
+                  Automated Correlated TDS: <span className="font-mono text-cyan-400 font-semibold">{liveTds.tdsPpm.toFixed(1)} ppm</span> ({tdsStatus.status}) · <span className="font-mono text-muted-foreground">{liveTds.tdsVoltage.toFixed(3)}V</span>
                 </div>
               </div>
             </div>
@@ -574,7 +535,7 @@ function SettingsPage() {
                         color: "#ffffff",
                       }}
                     >
-                      {parseFloat(phInput || "7.2").toFixed(1)} pH
+                      {parseFloat(phInput || "7.2").toFixed(1)} pH · {liveTds.tdsPpm} ppm
                       <div
                         className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent"
                         style={{
@@ -696,13 +657,13 @@ function SettingsPage() {
                     <span className="rounded-full bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-[10px] font-bold text-rose-300">
                       ACIDIC WATER MODE (pH 4.5)
                     </span>
-                    <span className="text-xs font-mono text-muted-foreground font-semibold">2.920 V</span>
+                    <span className="text-xs font-mono text-cyan-300 font-semibold">TDS ~576 ppm · 1.57V</span>
                   </div>
                   <div className="mt-2 text-xl font-bold text-rose-400">
                     High Acidity · Corrosive Leaching Standard
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                    Electrode Potential 2.920 V. Evaluates pipe corrosion, heavy metal leaching (lead/copper), and acidic water-quality alert dispatch.
+                    Corrosive pipe leaching anomaly. Elevated TDS (~576 ppm) from metallic dissolving (Cu, Fe, Pb) and heavy acidic ion mobility.
                   </p>
                 </div>
                 <Button
@@ -754,13 +715,13 @@ function SettingsPage() {
                     <span className="rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
                       NEUTRAL WATER STANDARD (pH 7.0)
                     </span>
-                    <span className="text-xs font-mono text-muted-foreground font-semibold">2.500 V</span>
+                    <span className="text-xs font-mono text-cyan-300 font-semibold">TDS ~160 ppm · 0.43V</span>
                   </div>
                   <div className="mt-2 text-xl font-bold text-emerald-400">
                     Optimal EPA Safe Potability Standard
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                    Electrode Potential 2.500 V. Balanced hydrochemistry, peak chlorine disinfection, minimal microbial proliferation risk.
+                    Balanced hydrochemistry. TDS remains within pristine mineral range (160–220 ppm) with peak disinfection efficacy and zero corrosion.
                   </p>
                 </div>
                 <Button
@@ -812,13 +773,13 @@ function SettingsPage() {
                     <span className="rounded-full bg-purple-500/20 border border-purple-500/40 px-2 py-0.5 text-[10px] font-bold text-purple-300">
                       ALKALINE WATER MODE (pH 9.0)
                     </span>
-                    <span className="text-xs font-mono text-muted-foreground font-semibold">1.620 V</span>
+                    <span className="text-xs font-mono text-cyan-300 font-semibold">TDS ~713 ppm · 1.95V</span>
                   </div>
                   <div className="mt-2 text-xl font-bold text-purple-400">
                     High Alkalinity · Caustic Scaling Standard
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                    Electrode Potential 1.620 V. Evaluates calcium carbonate scale buildup and &gt;80% chlorine disinfection efficacy loss.
+                    Caustic scaling anomaly. TDS climbs to ~713 ppm due to calcium carbonate (CaCO₃) precipitation, mineral hardness, and pipe fouling.
                   </p>
                 </div>
                 <Button

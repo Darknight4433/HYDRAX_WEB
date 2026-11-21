@@ -85,7 +85,7 @@ export function WaterCorrelationPanel({
               <span className="font-mono font-bold text-emerald-400">{ph.toFixed(2)}</span>
             </div>
             <div className="rounded-lg bg-black/40 border border-border/40 px-2.5 py-1 text-xs">
-              <span className="text-muted-foreground">TDS (Pin A0 Real): </span>
+              <span className="text-muted-foreground">Automated TDS: </span>
               <span className="font-mono font-bold text-cyan-400">{tds.toFixed(1)} ppm</span>
             </div>
             <span

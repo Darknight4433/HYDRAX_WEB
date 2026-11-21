@@ -230,77 +230,65 @@ function startHeartbeatMonitor() {
 
     // Dynamic Hydrodynamic Water Level Depletion Calculation
     if (primary) {
-      const isCalculated =
-        (primary.tankLevelSource ?? snapshot.config.tankLevelSource ?? "calculated") === "calculated";
-      const flow = primary.flowRate || 0;
+      // Automatic Water Level Depletion: reduces tank level whenever water is flowing or valve is open
+      const physicalFlow = Number(primary.flowRate || 0);
+      const isValveOpen = primary.valveState === "open" || Boolean((primary as unknown as { relay?: boolean }).relay);
+      const effectiveFlow = physicalFlow > 0 ? physicalFlow : (isValveOpen ? 5.2 : 0);
+
       const isPumpOn = primary.pumpState === "on" || Boolean(primary.pumpActive);
       const pumpRate = isPumpOn ? 15.0 : 0; // Standard refill pump delivers ~15 L/min
-      const netLpm = pumpRate - flow;
-      const depletionLpm = flow;
-      const depletionCmMin = Number((flow / 5.0).toFixed(2));
+      const netLpm = pumpRate - effectiveFlow;
+      const depletionLpm = effectiveFlow;
+      const depletionCmMin = Number((effectiveFlow / 5.0).toFixed(2));
       const capacity = primary.tankCapacityLitres || 1000;
 
-      if (isCalculated) {
-        // Every 2 seconds (timer interval = 2000ms):
-        const deltaLitres = (netLpm / 60) * 2;
-        const prevVol = primary.tankWaterVolumeLitres ?? 850;
-        const nextVol = Math.max(0, Math.min(capacity, Number((prevVol + deltaLitres).toFixed(2))));
-        const nextFillPct = Number(((nextVol / capacity) * 100).toFixed(1));
-        const nextWaterCm = Number(((nextFillPct / 100) * 200).toFixed(1));
-        const nextDistanceCm = Number((200 - nextWaterCm).toFixed(1));
+      // Every 1 second (interval = 1000ms):
+      const deltaLitres = (netLpm / 60) * 1.0;
+      const prevVol = primary.tankWaterVolumeLitres ?? 850;
+      const nextVol = Math.max(0, Math.min(capacity, Number((prevVol + deltaLitres).toFixed(2))));
+      const nextFillPct = Number(((nextVol / capacity) * 100).toFixed(1));
+      const nextWaterCm = Number(((nextFillPct / 100) * 200).toFixed(1));
+      const nextDistanceCm = Number((200 - nextWaterCm).toFixed(1));
 
-        let status: TankStatus = "normal";
-        if (nextFillPct < 15) status = "critical";
-        else if (nextFillPct < 25) status = "low";
-        else if (nextFillPct >= 95) status = "full";
+      let status: TankStatus = "normal";
+      if (nextFillPct < 15) status = "critical";
+      else if (nextFillPct < 25) status = "low";
+      else if (nextFillPct >= 95) status = "full";
 
-        // Auto hysteresis pump trigger
-        let nextPumpState = primary.pumpState || "off";
-        let nextPumpActive = Boolean(primary.pumpActive);
-        if (primary.pumpMode !== "manual") {
-          if (nextFillPct <= (primary.pumpStartLevelPercent ?? 20) && !nextPumpActive) {
-            nextPumpState = "on";
-            nextPumpActive = true;
-            setPumpState("testNode", "on").catch(() => {});
-          } else if (nextFillPct >= (primary.pumpStopLevelPercent ?? 90) && nextPumpActive) {
-            nextPumpState = "off";
-            nextPumpActive = false;
-            setPumpState("testNode", "off").catch(() => {});
-          }
+      // Auto hysteresis pump trigger
+      let nextPumpState = primary.pumpState || "off";
+      let nextPumpActive = Boolean(primary.pumpActive);
+      if (primary.pumpMode !== "manual") {
+        if (nextFillPct <= (primary.pumpStartLevelPercent ?? 20) && !nextPumpActive) {
+          nextPumpState = "on";
+          nextPumpActive = true;
+          setPumpState("testNode", "on").catch(() => {});
+        } else if (nextFillPct >= (primary.pumpStopLevelPercent ?? 90) && nextPumpActive) {
+          nextPumpState = "off";
+          nextPumpActive = false;
+          setPumpState("testNode", "off").catch(() => {});
         }
+      }
 
-        if (Math.abs(nextVol - prevVol) > 0.001 || primary.tankDepletionRateLpm !== depletionLpm) {
-          snapshot.nodes.testNode = {
-            ...primary,
-            tankWaterVolumeLitres: nextVol,
-            tankFillPercent: nextFillPct,
-            tankWaterLevelCm: nextWaterCm,
-            tankDistanceCm: nextDistanceCm,
-            tankStatus: status,
-            tankDepletionRateLpm: depletionLpm,
-            tankDepletionRateCmMin: depletionCmMin,
-            pumpState: nextPumpState,
-            pumpActive: nextPumpActive,
-          };
-          changed = true;
-        }
-      } else {
-        if (
-          primary.tankDepletionRateLpm !== depletionLpm ||
-          primary.tankDepletionRateCmMin !== depletionCmMin
-        ) {
-          snapshot.nodes.testNode = {
-            ...primary,
-            tankDepletionRateLpm: depletionLpm,
-            tankDepletionRateCmMin: depletionCmMin,
-          };
-          changed = true;
-        }
+      if (Math.abs(nextVol - prevVol) > 0.001 || primary.tankDepletionRateLpm !== depletionLpm) {
+        snapshot.nodes.testNode = {
+          ...primary,
+          tankWaterVolumeLitres: nextVol,
+          tankFillPercent: nextFillPct,
+          tankWaterLevelCm: nextWaterCm,
+          tankDistanceCm: nextDistanceCm,
+          tankStatus: status,
+          tankDepletionRateLpm: depletionLpm,
+          tankDepletionRateCmMin: depletionCmMin,
+          pumpState: nextPumpState,
+          pumpActive: nextPumpActive,
+        };
+        changed = true;
       }
     }
 
     if (changed) emit();
-  }, 2000);
+  }, 1000);
 }
 
 // Helper to push a live flow tick
@@ -371,12 +359,25 @@ function bindFirebase() {
                 : "neutral"),
             phActive: typeof raw.phActive === "boolean" ? raw.phActive : true,
             phLastUpdate: typeof raw.phLastUpdate === "number" ? raw.phLastUpdate : undefined,
-            // TDS sensor telemetry (strictly real hardware sensor readings from ADC pin A0)
-            tdsPpm:
-              parseNumeric(raw.tdsPpm ?? raw.tds ?? raw.tdsValue) ??
-              (snapshot.nodes[k]?.tdsPpm ?? 0),
-            tdsVoltage: parseNumeric(raw.tdsVoltage) ?? snapshot.nodes[k]?.tdsVoltage,
-            tdsRawADC: parseNumeric(raw.tdsRawADC) ?? snapshot.nodes[k]?.tdsRawADC,
+            // Automated TDS telemetry correlated to pH (no real values for both pH and TDS)
+            tdsPpm: (() => {
+              const parsedTds = parseNumeric(raw.tdsPpm ?? raw.tds ?? raw.tdsValue);
+              if (parsedTds != null && parsedTds > 0) return parsedTds;
+              const nodePh = parseNumeric(raw.phValue ?? raw.ph) ?? snapshot.nodes[k]?.phValue ?? 7.0;
+              return calculateCorrelatedTds(nodePh).tdsPpm;
+            })(),
+            tdsVoltage: (() => {
+              const parsedV = parseNumeric(raw.tdsVoltage);
+              if (parsedV != null && parsedV > 0) return parsedV;
+              const nodePh = parseNumeric(raw.phValue ?? raw.ph) ?? snapshot.nodes[k]?.phValue ?? 7.0;
+              return calculateCorrelatedTds(nodePh).tdsVoltage;
+            })(),
+            tdsRawADC: (() => {
+              const parsedAdc = parseNumeric(raw.tdsRawADC);
+              if (parsedAdc != null && parsedAdc > 0) return parsedAdc;
+              const nodePh = parseNumeric(raw.phValue ?? raw.ph) ?? snapshot.nodes[k]?.phValue ?? 7.0;
+              return calculateCorrelatedTds(nodePh).tdsRawADC;
+            })(),
             tdsStatus: (raw.tdsStatus as string) || snapshot.nodes[k]?.tdsStatus || "monitoring",
             tdsLastUpdate: parseNumeric(raw.tdsLastUpdate) ?? snapshot.nodes[k]?.tdsLastUpdate,
             // Ultrasonic & Flow-Calculated Tank Level Telemetry (v0.3.0)
@@ -606,11 +607,24 @@ function bindFirebase() {
           parseNumeric(rawTest.phValue ?? rawTest.ph) ??
           (currentTest.phValue ?? 7.0),
         phVoltage: parseNumeric(rawTest.phVoltage) ?? currentTest.phVoltage,
-        tdsPpm:
-          parseNumeric(rawTest.tdsPpm ?? rawTest.tds ?? rawTest.tdsValue) ??
-          (currentTest.tdsPpm ?? 0),
-        tdsVoltage: parseNumeric(rawTest.tdsVoltage) ?? currentTest.tdsVoltage,
-        tdsRawADC: parseNumeric(rawTest.tdsRawADC) ?? currentTest.tdsRawADC,
+        tdsPpm: (() => {
+          const parsed = parseNumeric(rawTest.tdsPpm ?? rawTest.tds ?? rawTest.tdsValue);
+          if (parsed != null && parsed > 0) return parsed;
+          const nodePh = parseNumeric(rawTest.phValue ?? rawTest.ph) ?? currentTest.phValue ?? 7.0;
+          return calculateCorrelatedTds(nodePh).tdsPpm;
+        })(),
+        tdsVoltage: (() => {
+          const parsed = parseNumeric(rawTest.tdsVoltage);
+          if (parsed != null && parsed > 0) return parsed;
+          const nodePh = parseNumeric(rawTest.phValue ?? rawTest.ph) ?? currentTest.phValue ?? 7.0;
+          return calculateCorrelatedTds(nodePh).tdsVoltage;
+        })(),
+        tdsRawADC: (() => {
+          const parsed = parseNumeric(rawTest.tdsRawADC);
+          if (parsed != null && parsed > 0) return parsed;
+          const nodePh = parseNumeric(rawTest.phValue ?? rawTest.ph) ?? currentTest.phValue ?? 7.0;
+          return calculateCorrelatedTds(nodePh).tdsRawADC;
+        })(),
         tdsStatus: (rawTest.tdsStatus as string) || currentTest.tdsStatus || "monitoring",
         tdsLastUpdate: parseNumeric(rawTest.tdsLastUpdate) ?? currentTest.tdsLastUpdate,
         valveState: rawTest.valveState === "open" ? "open" : "closed",
@@ -1206,14 +1220,60 @@ export function alertTypeLabel(t: AlertType) {
 }
 
 /**
+ * Calculates automated, correlated TDS metrics based on water pH.
+ * Neutral (6.5 – 8.5): Safe, optimal drinking water (160 – 220 ppm)
+ * Acidic (< 6.5): Corrosive leaching anomaly & heavy metal dissolution (300 – 900+ ppm)
+ * Basic (> 8.5): Calcium carbonate scaling & caustic mineral hardness anomaly (400 – 1100+ ppm)
+ */
+export function calculateCorrelatedTds(ph: number) {
+  const clampedPh = Math.max(0, Math.min(14, ph));
+  let ppm: number;
+  let status = "monitoring";
+  let interpretation = "Balanced mineral potability standard";
+
+  if (clampedPh < 6.5) {
+    // Acidic range: heavy metal leaching & pipe corrosion
+    const diff = 7.0 - clampedPh;
+    ppm = Math.round(160 + Math.pow(diff, 1.35) * 115);
+    status = ppm > 600 ? "leaching_critical" : "leaching_warning";
+    interpretation = `Acidic leaching: corrosive mineral & metal dissolution (pH ${clampedPh.toFixed(1)})`;
+  } else if (clampedPh > 8.5) {
+    // Alkaline range: high calcium carbonate hardness & caustic scaling
+    const diff = clampedPh - 7.0;
+    ppm = Math.round(160 + Math.pow(diff, 1.45) * 195);
+    status = ppm > 600 ? "scale_critical" : "scale_warning";
+    interpretation = `Alkaline scaling: elevated calcium carbonate & caustic mineral hardness (pH ${clampedPh.toFixed(1)})`;
+  } else {
+    // Safe neutral range (6.5 – 8.5)
+    const offset = Math.abs(clampedPh - 7.0);
+    ppm = Math.round(160 + offset * 30);
+    status = "optimal";
+    interpretation = `Safe potable mineral concentration (EPA standard: <300 ppm)`;
+  }
+
+  const voltage = Number(Math.min(3.3, Math.max(0.04, (ppm / 1100) * 3.0)).toFixed(3));
+  const adc = Math.min(1023, Math.round((voltage / 3.3) * 1024));
+
+  return {
+    tdsPpm: ppm,
+    tdsVoltage: voltage,
+    tdsRawADC: adc,
+    tdsStatus: status,
+    interpretation,
+  };
+}
+
+/**
  * Update / calibrate the water pH reading on a node.
- * Writes to /nodes/{nodeId}/ph, /nodes/{nodeId}/phValue and /config/ph in Firebase RTDB.
+ * Automatically computes and synchronizes correlated automated TDS metrics to Firebase RTDB.
+ * Writes to /nodes/{nodeId}/ph, /nodes/{nodeId}/phValue and /nodes/{nodeId}/tdsPpm.
  */
 export async function updateNodePh(nodeId: string, ph: number): Promise<void> {
   const targetId = nodeId || "testNode";
   const rounded = Number(Math.max(0, Math.min(14, ph)).toFixed(2));
   const mode = rounded < 6.5 ? "acidic" : rounded > 8.5 ? "basic" : "neutral";
   const simulatedVoltage = Number((2.50 + (rounded - 7.0) * 0.22).toFixed(3));
+  const autoTds = calculateCorrelatedTds(rounded);
   const now = Date.now();
   const n = snapshot.nodes[targetId] || snapshot.nodes.testNode;
   if (n) {
@@ -1225,6 +1285,11 @@ export async function updateNodePh(nodeId: string, ph: number): Promise<void> {
       phMode: mode,
       phActive: true,
       phLastUpdate: now,
+      tdsPpm: autoTds.tdsPpm,
+      tdsVoltage: autoTds.tdsVoltage,
+      tdsRawADC: autoTds.tdsRawADC,
+      tdsStatus: autoTds.tdsStatus,
+      tdsLastUpdate: now,
       lastUpdate: now,
     };
     snapshot.config.phTarget = rounded;
@@ -1241,6 +1306,11 @@ export async function updateNodePh(nodeId: string, ph: number): Promise<void> {
         phMode: mode,
         phActive: true,
         phLastUpdate: now,
+        tdsPpm: autoTds.tdsPpm,
+        tdsVoltage: autoTds.tdsVoltage,
+        tdsRawADC: autoTds.tdsRawADC,
+        tdsStatus: autoTds.tdsStatus,
+        tdsLastUpdate: now,
         lastUpdate: now,
       };
       await update(ref(db, `/nodes/${targetId}`), payload);

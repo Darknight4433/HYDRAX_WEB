@@ -148,27 +148,20 @@ export function TankPumpMonitor({
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Ultrasonic Level Sensor (HC-SR04 · D6/D8) &amp; Automated Hysteresis Pump Relay (D2).
+              Automated Dynamic Level Depletion (-flowRate L/min) &amp; Automated Hysteresis Pump Refill.
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Mode Selector Toggle Pill */}
-          <button
-            type="button"
-            onClick={handleToggleLevelSource}
-            disabled={isUpdating}
-            className={`text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1.5 border transition-all cursor-pointer ${
-              isCalculatedMode
-                ? "bg-purple-500/20 text-purple-300 border-purple-500/40 hover:bg-purple-500/30 shadow-sm"
-                : "bg-cyan-500/20 text-cyan-300 border-cyan-500/40 hover:bg-cyan-500/30 shadow-sm"
-            }`}
-            title="Click to toggle between Real HC-SR04 Ultrasonic and Flow-Calculated Level Mode"
+          {/* Automatic Level Status Pill */}
+          <div
+            className="text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1.5 border bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-sm"
+            title="Water level automatically reduces as flow is detected, refilling via automated hysteresis"
           >
-            <Radio className="h-3 w-3" />
-            <span>{isCalculatedMode ? "Flow-Calculated Level" : "Real HC-SR04 Ultrasonic"}</span>
-          </button>
+            <Radio className="h-3 w-3 animate-pulse" />
+            <span>Automatic Level Engine</span>
+          </div>
 
           <StatusPill tone={isPumpActive ? "success" : "muted"} pulse={isPumpActive}>
             Pump {isPumpActive ? "RUNNING" : "STANDBY"}
@@ -194,10 +187,10 @@ export function TankPumpMonitor({
 
           {/* Animated Water Cylinder */}
           <div className="relative w-36 sm:w-44 h-56 rounded-2xl border-2 border-cyan-500/40 bg-slate-950/80 shadow-2xl overflow-hidden flex flex-col justify-end p-1">
-            {/* Ultrasonic Sensor Cap at top */}
+            {/* Level Sensor Cap at top */}
             <div className="absolute top-1 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-black/80 px-2 py-0.5 rounded-full border border-cyan-500/40 z-20">
               <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping" />
-              <span className="text-[9px] font-mono text-cyan-300">HC-SR04 (D6/D8)</span>
+              <span className="text-[9px] font-mono text-cyan-300">Auto-Level Engine</span>
             </div>
 
             {/* Ultrasonic Sonic Waves Graphic */}
@@ -354,7 +347,7 @@ export function TankPumpMonitor({
               )}
               <div>
                 <span className="font-bold text-foreground">
-                  {isCalculatedMode ? "Hydrodynamic Flow Model: " : "Ultrasonic Sensor Telemetry: "}
+                  Automated Hydrodynamic Flow Model:{" "}
                 </span>
                 <span className="text-muted-foreground">
                   {flowRate > 0
