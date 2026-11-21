@@ -8,8 +8,71 @@ let channelCreated = false;
 const lastNotificationTime: Record<string, number> = {};
 const NOTIFICATION_COOLDOWN_MS = 45000; // 45 seconds cooldown per distinct abnormality key
 
+// State transition tracker to ensure immediate push on contamination transitions
+let lastPhState: "acidic" | "basic" | "neutral" | null = null;
+
+export const ALERT_CHANNEL_ID = "hydrax_water_alerts_v2";
+
 /**
- * Initialize Notification permissions and high-priority Android channel.
+ * Synthesizes an audible alert tone using Web Audio API.
+ * Works seamlessly in web browsers and mobile WebView without external audio files.
+ */
+export function playContaminationAudioTone(severity: "critical" | "warning" | "info" = "critical") {
+  if (typeof window === "undefined") return;
+  try {
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    if (severity === "critical") {
+      // High-urgency dual-tone alarm (880 Hz -> 660 Hz)
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.setValueAtTime(660, ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.18, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.45);
+    } else {
+      // Moderate warning tone (587 Hz)
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.3);
+    }
+  } catch {
+    // Autoplay restrictions or lack of audio permission - ignore silently
+  }
+}
+
+/**
+ * Triggers physical vibration patterns on supporting mobile devices.
+ */
+export function triggerContaminationHaptics(severity: "critical" | "warning" | "info" = "critical") {
+  if (typeof navigator !== "undefined" && navigator.vibrate) {
+    try {
+      if (severity === "critical") {
+        navigator.vibrate([350, 150, 350, 150, 500]);
+      } else {
+        navigator.vibrate([200, 100, 200]);
+      }
+    } catch {
+      // Unsupported or blocked
+    }
+  }
+}
+
+/**
+ * Initialize Notification permissions and high-priority Android notification channel.
  */
 export async function initNotifications(): Promise<boolean> {
   if (typeof window === "undefined") return false;
@@ -28,12 +91,25 @@ export async function initNotifications(): Promise<boolean> {
 
       if (!channelCreated) {
         channelCreated = true;
+        // Register high-priority notification channel on Android
+        await LocalNotifications.createChannel({
+          id: ALERT_CHANNEL_ID,
+          name: "HYDRAXX Water Safety & Contamination Alarms",
+          description: "High priority alarms for pH contamination (acidic/basic), toxic TDS, and reservoir anomalies.",
+          importance: 5, // High / Urgent (heads-up banner, vibration, sound)
+          visibility: 1, // Public on lockscreen
+          vibration: true,
+          lights: true,
+          lightColor: "#EF4444",
+        });
+
+        // Also register default channel as fallback
         await LocalNotifications.createChannel({
           id: "hydrax_water_alerts",
-          name: "HYDRAXX Water Safety & Anomaly Alerts",
-          description: "High priority alarms for pH abnormalities, toxic TDS, and reservoir overflow/emptying.",
-          importance: 5, // High / Urgent (makes sound and pops on screen)
-          visibility: 1, // Public on lockscreen
+          name: "HYDRAXX System Alerts",
+          description: "General alerts and flow anomaly notifications.",
+          importance: 5,
+          visibility: 1,
           vibration: true,
           lights: true,
           lightColor: "#06B6D4",
@@ -62,39 +138,51 @@ export async function initNotifications(): Promise<boolean> {
 
 /**
  * Send a notification for water abnormalities (both on Android APK and Web Browser).
+ * @param key Unique identifier for the alert type
+ * @param title Notification title
+ * @param body Notification message
+ * @param severity "critical" | "warning" | "info"
+ * @param force If true, bypasses the 45-second cooldown (used for state transitions and test alerts)
  */
 export async function sendWaterAbnormalityAlert(
   key: string,
   title: string,
   body: string,
   severity: "critical" | "warning" | "info" = "warning",
+  force: boolean = false,
 ): Promise<void> {
   const now = Date.now();
   const lastTime = lastNotificationTime[key] || 0;
 
-  // Enforce cooldown so users aren't spammed while a condition remains active
-  if (now - lastTime < NOTIFICATION_COOLDOWN_MS) {
+  // Enforce cooldown unless explicitly forced (e.g. on new state transition or test button)
+  if (!force && now - lastTime < NOTIFICATION_COOLDOWN_MS) {
     return;
   }
   lastNotificationTime[key] = now;
 
+  // Trigger audio chime and tactile haptic vibration
+  playContaminationAudioTone(severity);
+  triggerContaminationHaptics(severity);
+
   const isNative = typeof window !== "undefined" && Capacitor.isNativePlatform();
 
-  // 1. Android Native Notification (via Capacitor)
+  // 1. Android Native Push Notification (via Capacitor LocalNotifications)
   if (isNative) {
     try {
       await initNotifications();
-      const notifId = Math.floor(Math.random() * 100000) + 1;
+      // Generate 32-bit positive integer notification ID
+      const notifId = Math.floor(Math.random() * 900000) + 100000;
       await LocalNotifications.schedule({
         notifications: [
           {
             id: notifId,
             title,
             body,
-            channelId: "hydrax_water_alerts",
-            schedule: { at: new Date(Date.now() + 100) },
-            sound: undefined,
-            extra: { key, severity },
+            largeBody: body,
+            summaryText: "HYDRAXX Contamination Alert",
+            channelId: ALERT_CHANNEL_ID,
+            // Do NOT provide schedule: { at: ... } for immediate alerts to avoid AlarmManager restrictions
+            extra: { key, severity, timestamp: now },
           },
         ],
       });
@@ -102,7 +190,7 @@ export async function sendWaterAbnormalityAlert(
       console.warn("Failed to schedule native Android notification:", err);
     }
   } else if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-    // 2. Web Browser Notification
+    // 2. Web Browser Notification (Desktop & Mobile Web)
     try {
       new Notification(title, {
         body,
@@ -113,18 +201,41 @@ export async function sendWaterAbnormalityAlert(
     } catch { }
   }
 
-  // 3. In-App Sonner Toast
+  // 3. In-App Toast Alert (Sonner)
   if (severity === "critical") {
-    toast.error(title, { description: body, duration: 6000 });
+    toast.error(title, { description: body, duration: 8000 });
   } else if (severity === "warning") {
-    toast.warning(title, { description: body, duration: 5000 });
+    toast.warning(title, { description: body, duration: 6000 });
   } else {
     toast.info(title, { description: body, duration: 4000 });
   }
 }
 
 /**
- * Evaluates snapshot telemetry and triggers alerts if abnormalities are sensed in the water.
+ * Direct tester function for Acidic or Basic phone push notifications.
+ */
+export async function triggerContaminationTest(type: "acidic" | "basic"): Promise<void> {
+  if (type === "acidic") {
+    await sendWaterAbnormalityAlert(
+      "abnormality_ph_acidic",
+      "🚨 High Acidic Water Contamination Detected!",
+      "Water pH measured at 4.50 (< 6.5). Critical corrosive hazard! Heavy metals leaching risk (Correlated TDS: ~576 ppm).",
+      "critical",
+      true, // force immediate delivery
+    );
+  } else {
+    await sendWaterAbnormalityAlert(
+      "abnormality_ph_basic",
+      "🚨 High Basic Water Contamination Detected!",
+      "Water pH measured at 9.00 (> 8.5). Critical caustic water hazard! Severe mineral scaling & disinfection loss (Correlated TDS: ~713 ppm).",
+      "critical",
+      true, // force immediate delivery
+    );
+  }
+}
+
+/**
+ * Evaluates snapshot telemetry and triggers phone alerts if water contamination is detected.
  */
 export function checkWaterTelemetryAbnormalities(snapshot: HydraxSnapshot): void {
   const node = snapshot.nodes.testNode || Object.values(snapshot.nodes)[0];
@@ -136,22 +247,30 @@ export function checkWaterTelemetryAbnormalities(snapshot: HydraxSnapshot): void
   const flow = node.flowRate;
   const threshold = node.threshold ?? 22;
 
-  // 1. pH Abnormalities
+  // 1. Water pH Contamination Detection (< 6.5 Acidic or > 8.5 Basic)
   if (ph != null) {
     if (ph < 6.5) {
+      const isNewTransition = lastPhState !== "acidic";
+      lastPhState = "acidic";
       sendWaterAbnormalityAlert(
         "abnormality_ph_acidic",
-        "⚠️ Acidic Water Anomaly Detected!",
-        `Water pH measured at ${ph.toFixed(2)} (< 6.5). High corrosion hazard & heavy metal leaching risk!`,
+        "🚨 High Acidic Water Contamination Detected!",
+        `Water pH measured at ${ph.toFixed(2)} (< 6.5). Critical corrosive hazard! Heavy metals (Pb, Cu, Fe) leaching risk (Correlated TDS: ${tds != null ? tds.toFixed(0) : "576"} ppm).`,
         "critical",
+        isNewTransition,
       );
     } else if (ph > 8.5) {
+      const isNewTransition = lastPhState !== "basic";
+      lastPhState = "basic";
       sendWaterAbnormalityAlert(
-        "abnormality_ph_alkaline",
-        "⚠️ High Alkaline / Basic Water Anomaly!",
-        `Water pH measured at ${ph.toFixed(2)} (> 8.5). Caustic mineral scaling & disinfectant loss alert.`,
-        "warning",
+        "abnormality_ph_basic",
+        "🚨 High Basic Water Contamination Detected!",
+        `Water pH measured at ${ph.toFixed(2)} (> 8.5). Critical caustic water hazard! Severe mineral scaling & disinfectant loss alert (Correlated TDS: ${tds != null ? tds.toFixed(0) : "713"} ppm).`,
+        "critical",
+        isNewTransition,
       );
+    } else {
+      lastPhState = "neutral";
     }
   }
 
