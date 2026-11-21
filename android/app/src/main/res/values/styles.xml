@@ -23,5 +23,6 @@
         <item name="android:statusBarColor">#080c14</item>
         <item name="android:navigationBarColor">#080c14</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
     </style>
 </resources>

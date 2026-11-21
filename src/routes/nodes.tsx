@@ -130,17 +130,17 @@ function NodesPage() {
               </div>
               <div className="rounded-lg bg-black/20 p-2.5">
                 <div className="text-foreground font-medium flex items-center justify-between">
-                  <span>Tank Reservoir (Pins D6/D8):</span>
+                  <span>Tank Reservoir (128mm Height):</span>
                   <span className="text-cyan-400 font-bold">
-                    {(primaryNode?.tankFillPercent ?? 83.8).toFixed(1)}% (
-                    {(primaryNode?.tankWaterVolumeLitres ?? 837.5).toFixed(0)}L)
+                    {(primaryNode?.online ? (primaryNode?.tankFillPercent ?? 0) : 0).toFixed(1)}% (
+                    {(primaryNode?.online ? (primaryNode?.tankWaterVolumeLitres ?? 0) : 0).toFixed(2)}L)
                   </span>
                 </div>
                 <div className="text-[11px] mt-0.5">
-                  Height: {(primaryNode?.tankWaterLevelCm ?? 167.5).toFixed(1)}cm · Gap:{" "}
-                  {(primaryNode?.tankDistanceCm ?? 32.5).toFixed(1)}cm ·{" "}
+                  Height: {(primaryNode?.online ? (primaryNode?.tankWaterLevelCm ?? 0) : 0).toFixed(1)}cm · Gap:{" "}
+                  {(primaryNode?.online ? (primaryNode?.tankDistanceCm ?? 12.8) : 12.8).toFixed(1)}cm ·{" "}
                   <span className="uppercase text-cyan-300 font-semibold">
-                    {primaryNode?.tankStatus ?? "normal"}
+                    {primaryNode?.online ? (primaryNode?.tankStatus ?? "normal") : "offline"}
                   </span>
                 </div>
               </div>
@@ -256,15 +256,15 @@ function NodeDetailCard({ node }: { node: HydraxNode }) {
             </div>
             <div>
               <div className="text-xs uppercase tracking-wider text-muted-foreground">
-                Reservoir Level (D6/D8)
+                Reservoir Level (128mm Height)
               </div>
               <div className="text-base font-bold text-foreground">
-                {(node.tankFillPercent ?? 83.8).toFixed(1)}% ·{" "}
-                {(node.tankWaterVolumeLitres ?? 837.5).toFixed(0)}L
+                {(node.online ? (node.tankFillPercent ?? 0) : 0).toFixed(1)}% ·{" "}
+                {(node.online ? (node.tankWaterVolumeLitres ?? 0) : 0).toFixed(2)}L
               </div>
               <div className="text-[11px] text-muted-foreground">
-                Height: {(node.tankWaterLevelCm ?? 167.5).toFixed(1)}cm · Gap:{" "}
-                {(node.tankDistanceCm ?? 32.5).toFixed(1)}cm
+                Height: {(node.online ? (node.tankWaterLevelCm ?? 0) : 0).toFixed(1)}cm · Gap:{" "}
+                {(node.online ? (node.tankDistanceCm ?? 12.8) : 12.8).toFixed(1)}cm
               </div>
             </div>
           </div>

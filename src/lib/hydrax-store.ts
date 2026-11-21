@@ -37,6 +37,54 @@ import { checkWaterTelemetryAbnormalities, initNotifications } from "./notificat
 // Timeout after which a device is flagged stale if lastUpdate timestamp stops (15 minutes grace period)
 const HEARTBEAT_TIMEOUT_MS = 900000;
 
+// Physical Conical Frustum Tank Dimensions:
+// Height: 128 mm (12.8 cm), Bottom Diameter: 95 mm (Radius 4.75 cm), Top Diameter: 126 mm (Radius 6.30 cm)
+export const TANK_HEIGHT_CM = 12.8; // 128 mm
+export const TANK_BOTTOM_RADIUS_CM = 4.75; // 95 mm / 2
+export const TANK_TOP_RADIUS_CM = 6.30; // 126 mm / 2
+
+// Conical frustum volume: V = (PI * h / 3) * (r1^2 + r1*r2 + r2^2)
+export const TANK_TOTAL_CAPACITY_CM3 =
+  (Math.PI * TANK_HEIGHT_CM / 3.0) *
+  (TANK_BOTTOM_RADIUS_CM * TANK_BOTTOM_RADIUS_CM +
+    TANK_BOTTOM_RADIUS_CM * TANK_TOP_RADIUS_CM +
+    TANK_TOP_RADIUS_CM * TANK_TOP_RADIUS_CM);
+export const TANK_TOTAL_CAPACITY_LITRES = Number((TANK_TOTAL_CAPACITY_CM3 / 1000.0).toFixed(3)); // ~1.236 Litres
+
+/**
+ * Returns water volume in Litres for a given water height y (cm).
+ */
+export function getTankVolumeAtHeight(heightCm: number): number {
+  const y = Math.max(0, Math.min(TANK_HEIGHT_CM, heightCm));
+  if (y <= 0) return 0;
+  const ry = TANK_BOTTOM_RADIUS_CM + ((TANK_TOP_RADIUS_CM - TANK_BOTTOM_RADIUS_CM) / TANK_HEIGHT_CM) * y;
+  const volCm3 =
+    (Math.PI * y / 3.0) *
+    (TANK_BOTTOM_RADIUS_CM * TANK_BOTTOM_RADIUS_CM +
+      TANK_BOTTOM_RADIUS_CM * ry +
+      ry * ry);
+  return Number((volCm3 / 1000.0).toFixed(3));
+}
+
+/**
+ * Returns water height in cm for a given water volume in Litres.
+ */
+export function getTankHeightAtVolume(volumeLitres: number): number {
+  if (volumeLitres <= 0) return 0;
+  if (volumeLitres >= TANK_TOTAL_CAPACITY_LITRES) return TANK_HEIGHT_CM;
+  let low = 0;
+  let high = TANK_HEIGHT_CM;
+  for (let i = 0; i < 20; i++) {
+    const mid = (low + high) / 2.0;
+    if (getTankVolumeAtHeight(mid) < volumeLitres) {
+      low = mid;
+    } else {
+      high = mid;
+    }
+  }
+  return Number(((low + high) / 2.0).toFixed(2));
+}
+
 function nowHour() {
   return new Date().getHours();
 }
@@ -90,17 +138,18 @@ function initialTestNode(): HydraxNode {
     tdsRawADC: 0,
     tdsStatus: "monitoring",
     tdsLastUpdate: 0,
-    // Ultrasonic & Flow-Calculated Tank Telemetry (HYDRAXX v0.3.0)
+    // Frustum Physical Tank Telemetry (Height 128mm, Base 95mm, Top 126mm, 1.24L)
     tankLevelSource: "calculated",
-    tankStartingVolumeLitres: 850,
+    tankStartingVolumeLitres: 1.24,
     tankDepletionRateLpm: 0,
     tankDepletionRateCmMin: 0,
-    tankDistanceCm: 30,
-    tankWaterLevelCm: 170,
-    tankCapacityLitres: 1000,
-    tankWaterVolumeLitres: 850,
-    tankFillPercent: 85,
-    tankStatus: "normal",
+    // When Wemos is offline, tank level must strictly be 0
+    tankDistanceCm: 12.8,
+    tankWaterLevelCm: 0,
+    tankCapacityLitres: 1.24,
+    tankWaterVolumeLitres: 0,
+    tankFillPercent: 0,
+    tankStatus: "offline",
     tankSensorActive: true,
     tankLastUpdate: 0,
     // Automated Pump Actuator
@@ -134,7 +183,7 @@ function initialSnapshot(): HydraxSnapshot {
       institutionName: "HYDRAXX Smart Water",
       aiEnabled: false,
       tankLevelSource: "calculated",
-      tankStartingVolumeLitres: 850,
+      tankStartingVolumeLitres: 1.24,
       thresholds: null, // Loaded strictly from Firebase
       thresholdsStatus: "loading",
       thresholdsError: null,
@@ -230,60 +279,92 @@ function startHeartbeatMonitor() {
 
     // Dynamic Hydrodynamic Water Level Depletion Calculation
     if (primary) {
-      // Automatic Water Level Depletion: reduces tank level whenever water is flowing or valve is open
-      const physicalFlow = Number(primary.flowRate || 0);
-      const isValveOpen = primary.valveState === "open" || Boolean((primary as unknown as { relay?: boolean }).relay);
-      const effectiveFlow = physicalFlow > 0 ? physicalFlow : (isValveOpen ? 5.2 : 0);
-
-      const isPumpOn = primary.pumpState === "on" || Boolean(primary.pumpActive);
-      const pumpRate = isPumpOn ? 15.0 : 0; // Standard refill pump delivers ~15 L/min
-      const netLpm = pumpRate - effectiveFlow;
-      const depletionLpm = effectiveFlow;
-      const depletionCmMin = Number((effectiveFlow / 5.0).toFixed(2));
-      const capacity = primary.tankCapacityLitres || 1000;
-
-      // Every 1 second (interval = 1000ms):
-      const deltaLitres = (netLpm / 60) * 1.0;
-      const prevVol = primary.tankWaterVolumeLitres ?? 850;
-      const nextVol = Math.max(0, Math.min(capacity, Number((prevVol + deltaLitres).toFixed(2))));
-      const nextFillPct = Number(((nextVol / capacity) * 100).toFixed(1));
-      const nextWaterCm = Number(((nextFillPct / 100) * 200).toFixed(1));
-      const nextDistanceCm = Number((200 - nextWaterCm).toFixed(1));
-
-      let status: TankStatus = "normal";
-      if (nextFillPct < 15) status = "critical";
-      else if (nextFillPct < 25) status = "low";
-      else if (nextFillPct >= 95) status = "full";
-
-      // Auto hysteresis pump trigger
-      let nextPumpState = primary.pumpState || "off";
-      let nextPumpActive = Boolean(primary.pumpActive);
-      if (primary.pumpMode !== "manual") {
-        if (nextFillPct <= (primary.pumpStartLevelPercent ?? 20) && !nextPumpActive) {
-          nextPumpState = "on";
-          nextPumpActive = true;
-          setPumpState("testNode", "on").catch(() => {});
-        } else if (nextFillPct >= (primary.pumpStopLevelPercent ?? 90) && nextPumpActive) {
-          nextPumpState = "off";
-          nextPumpActive = false;
-          setPumpState("testNode", "off").catch(() => {});
+      // 1. When Wemos shows offline, tank level strictly shows 0
+      if (!primary.online) {
+        if (
+          primary.tankWaterLevelCm !== 0 ||
+          primary.tankFillPercent !== 0 ||
+          primary.tankWaterVolumeLitres !== 0 ||
+          primary.tankStatus !== "offline"
+        ) {
+          snapshot.nodes.testNode = {
+            ...primary,
+            tankWaterLevelCm: 0,
+            tankFillPercent: 0,
+            tankWaterVolumeLitres: 0,
+            tankDistanceCm: TANK_HEIGHT_CM,
+            tankStatus: "offline",
+            tankDepletionRateLpm: 0,
+            tankDepletionRateCmMin: 0,
+          };
+          changed = true;
         }
-      }
+      } else {
+        // 2. When Wemos is online, tank level depletes/refills according to flow and exact frustum tank dimensions
+        const physicalFlow = Number(primary.flowRate || 0);
+        const isValveOpen = primary.valveState === "open" || Boolean((primary as unknown as { relay?: boolean }).relay);
+        const effectiveFlow = physicalFlow > 0 ? physicalFlow : (isValveOpen ? 0.35 : 0);
 
-      if (Math.abs(nextVol - prevVol) > 0.001 || primary.tankDepletionRateLpm !== depletionLpm) {
-        snapshot.nodes.testNode = {
-          ...primary,
-          tankWaterVolumeLitres: nextVol,
-          tankFillPercent: nextFillPct,
-          tankWaterLevelCm: nextWaterCm,
-          tankDistanceCm: nextDistanceCm,
-          tankStatus: status,
-          tankDepletionRateLpm: depletionLpm,
-          tankDepletionRateCmMin: depletionCmMin,
-          pumpState: nextPumpState,
-          pumpActive: nextPumpActive,
-        };
-        changed = true;
+        const isPumpOn = primary.pumpState === "on" || Boolean(primary.pumpActive);
+        const pumpRate = isPumpOn ? 0.60 : 0; // Benchtop refill pump delivers ~0.60 L/min
+        const netLpm = pumpRate - effectiveFlow;
+        const depletionLpm = effectiveFlow;
+        const capacity = primary.tankCapacityLitres || TANK_TOTAL_CAPACITY_LITRES;
+
+        // Every 1 second (interval = 1000ms):
+        const deltaLitres = (netLpm / 60.0) * 1.0;
+        const prevVol =
+          typeof primary.tankWaterVolumeLitres === "number" && primary.tankWaterVolumeLitres > 0
+            ? primary.tankWaterVolumeLitres
+            : (primary.tankStartingVolumeLitres || capacity);
+        const nextVol = Math.max(0, Math.min(capacity, Number((prevVol + deltaLitres).toFixed(4))));
+        const nextFillPct = Number(((nextVol / capacity) * 100).toFixed(1));
+        const nextWaterCm = getTankHeightAtVolume(nextVol);
+        const nextDistanceCm = Number((TANK_HEIGHT_CM - nextWaterCm).toFixed(2));
+        // Water column drop rate (cm/min) based on average tank cross-section
+        const avgRadiusCm = (TANK_BOTTOM_RADIUS_CM + TANK_TOP_RADIUS_CM) / 2.0;
+        const avgAreaCm2 = Math.PI * avgRadiusCm * avgRadiusCm;
+        const depletionCmMin = Number(((effectiveFlow * 1000.0) / avgAreaCm2).toFixed(2));
+
+        let status: TankStatus = "normal";
+        if (nextFillPct < 15) status = "critical";
+        else if (nextFillPct < 25) status = "low";
+        else if (nextFillPct >= 95) status = "full";
+
+        // Auto hysteresis pump trigger
+        let nextPumpState = primary.pumpState || "off";
+        let nextPumpActive = Boolean(primary.pumpActive);
+        if (primary.pumpMode !== "manual") {
+          if (nextFillPct <= (primary.pumpStartLevelPercent ?? 20) && !nextPumpActive) {
+            nextPumpState = "on";
+            nextPumpActive = true;
+            setPumpState("testNode", "on").catch(() => {});
+          } else if (nextFillPct >= (primary.pumpStopLevelPercent ?? 90) && nextPumpActive) {
+            nextPumpState = "off";
+            nextPumpActive = false;
+            setPumpState("testNode", "off").catch(() => {});
+          }
+        }
+
+        if (
+          Math.abs(nextVol - prevVol) > 0.0001 ||
+          primary.tankDepletionRateLpm !== depletionLpm ||
+          primary.tankWaterLevelCm !== nextWaterCm
+        ) {
+          snapshot.nodes.testNode = {
+            ...primary,
+            tankWaterVolumeLitres: nextVol,
+            tankFillPercent: nextFillPct,
+            tankWaterLevelCm: nextWaterCm,
+            tankDistanceCm: nextDistanceCm,
+            tankStatus: status,
+            tankDepletionRateLpm: depletionLpm,
+            tankDepletionRateCmMin: depletionCmMin,
+            pumpState: nextPumpState,
+            pumpActive: nextPumpActive,
+          };
+          changed = true;
+        }
       }
     }
 
@@ -381,39 +462,34 @@ function bindFirebase() {
             tdsStatus: (raw.tdsStatus as string) || snapshot.nodes[k]?.tdsStatus || "monitoring",
             tdsLastUpdate: parseNumeric(raw.tdsLastUpdate) ?? snapshot.nodes[k]?.tdsLastUpdate,
             // Ultrasonic & Flow-Calculated Tank Level Telemetry (v0.3.0)
-            tankLevelSource:
-              (raw.tankLevelSource as TankLevelSource) ||
-              snapshot.config.tankLevelSource ||
-              snapshot.nodes[k]?.tankLevelSource ||
-              "calculated",
-            tankDepletionRateLpm: Number(raw.flowRate ?? 0),
-            tankDepletionRateCmMin: Number(((Number(raw.flowRate ?? 0)) / 5.0).toFixed(2)),
+            // Frustum Physical Tank Telemetry (Height 128mm, Base 95mm, Top 126mm, 1.24L)
+            tankLevelSource: "calculated",
+            tankDepletionRateLpm: isDeviceOnline ? Number(raw.flowRate ?? 0) : 0,
+            tankDepletionRateCmMin: isDeviceOnline ? Number(((Number(raw.flowRate ?? 0)) / 5.0).toFixed(2)) : 0,
             tankStartingVolumeLitres:
               typeof raw.tankStartingVolumeLitres === "number"
                 ? Number(raw.tankStartingVolumeLitres)
-                : (snapshot.nodes[k]?.tankStartingVolumeLitres ?? 850),
-            tankDistanceCm:
-              ((raw.tankLevelSource as TankLevelSource) || snapshot.config.tankLevelSource || "calculated") === "ultrasonic"
-                ? (typeof raw.tankDistanceCm === "number" ? Number(raw.tankDistanceCm) : (snapshot.nodes[k]?.tankDistanceCm ?? 0))
-                : (snapshot.nodes[k]?.tankDistanceCm ?? (typeof raw.tankDistanceCm === "number" ? Number(raw.tankDistanceCm) : 30)),
-            tankWaterLevelCm:
-              ((raw.tankLevelSource as TankLevelSource) || snapshot.config.tankLevelSource || "calculated") === "ultrasonic"
-                ? (typeof raw.tankWaterLevelCm === "number" ? Number(raw.tankWaterLevelCm) : (snapshot.nodes[k]?.tankWaterLevelCm ?? 0))
-                : (snapshot.nodes[k]?.tankWaterLevelCm ?? (typeof raw.tankWaterLevelCm === "number" ? Number(raw.tankWaterLevelCm) : 170)),
+                : (snapshot.nodes[k]?.tankStartingVolumeLitres ?? TANK_TOTAL_CAPACITY_LITRES),
+            // When Wemos is offline, tank level strictly shows 0
+            tankDistanceCm: !isDeviceOnline
+              ? TANK_HEIGHT_CM
+              : (snapshot.nodes[k]?.tankDistanceCm ?? (typeof raw.tankDistanceCm === "number" ? Number(raw.tankDistanceCm) : 0)),
+            tankWaterLevelCm: !isDeviceOnline
+              ? 0
+              : (snapshot.nodes[k]?.tankWaterLevelCm ?? (typeof raw.tankWaterLevelCm === "number" ? Number(raw.tankWaterLevelCm) : 0)),
             tankCapacityLitres:
               typeof raw.tankCapacityLitres === "number"
                 ? Number(raw.tankCapacityLitres)
-                : (snapshot.nodes[k]?.tankCapacityLitres ?? 1000),
-            tankWaterVolumeLitres:
-              ((raw.tankLevelSource as TankLevelSource) || snapshot.config.tankLevelSource || "calculated") === "ultrasonic"
-                ? (typeof raw.tankWaterVolumeLitres === "number" ? Number(raw.tankWaterVolumeLitres) : (snapshot.nodes[k]?.tankWaterVolumeLitres ?? 0))
-                : (snapshot.nodes[k]?.tankWaterVolumeLitres ?? (typeof raw.tankWaterVolumeLitres === "number" ? Number(raw.tankWaterVolumeLitres) : 850)),
-            tankFillPercent:
-              ((raw.tankLevelSource as TankLevelSource) || snapshot.config.tankLevelSource || "calculated") === "ultrasonic"
-                ? (typeof raw.tankFillPercent === "number" ? Number(raw.tankFillPercent) : (snapshot.nodes[k]?.tankFillPercent ?? 0))
-                : (snapshot.nodes[k]?.tankFillPercent ?? (typeof raw.tankFillPercent === "number" ? Number(raw.tankFillPercent) : 85)),
-            tankStatus:
-              (raw.tankStatus as TankStatus) || (snapshot.nodes[k]?.tankStatus ?? "normal"),
+                : TANK_TOTAL_CAPACITY_LITRES,
+            tankWaterVolumeLitres: !isDeviceOnline
+              ? 0
+              : (snapshot.nodes[k]?.tankWaterVolumeLitres ?? (typeof raw.tankWaterVolumeLitres === "number" ? Number(raw.tankWaterVolumeLitres) : 0)),
+            tankFillPercent: !isDeviceOnline
+              ? 0
+              : (snapshot.nodes[k]?.tankFillPercent ?? (typeof raw.tankFillPercent === "number" ? Number(raw.tankFillPercent) : 0)),
+            tankStatus: !isDeviceOnline
+              ? "offline"
+              : ((raw.tankStatus as TankStatus) || (snapshot.nodes[k]?.tankStatus ?? "normal")),
             tankSensorActive:
               typeof raw.tankSensorActive === "boolean" ? raw.tankSensorActive : true,
             tankLastUpdate: typeof raw.tankLastUpdate === "number" ? raw.tankLastUpdate : undefined,
@@ -912,11 +988,10 @@ export async function calibrateTankLevel(nodeId: string, fillPercent: number): P
   const n = snapshot.nodes[nodeId];
   if (!n) return;
 
-  const capacity = n.tankCapacityLitres || 1000;
-  const volume = Number(((clampedPct / 100) * capacity).toFixed(1));
-  const totalHeightCm = 200; // standard 2m tank height
-  const waterHeightCm = Number(((clampedPct / 100) * totalHeightCm).toFixed(1));
-  const distanceCm = Number((totalHeightCm - waterHeightCm).toFixed(1));
+  const capacity = n.tankCapacityLitres || TANK_TOTAL_CAPACITY_LITRES;
+  const volume = Number(((clampedPct / 100) * capacity).toFixed(4));
+  const waterHeightCm = getTankHeightAtVolume(volume);
+  const distanceCm = Number((TANK_HEIGHT_CM - waterHeightCm).toFixed(2));
 
   let status: TankStatus = "normal";
   if (clampedPct < 15) status = "critical";
@@ -1004,16 +1079,16 @@ export async function setTankLevelSource(source: TankLevelSource): Promise<void>
  */
 export async function resetTankCalculatedVolume(
   nodeId: string,
-  startingLitres: number = 850,
+  startingLitres: number = 1.24,
 ): Promise<void> {
   const targetId = nodeId || "testNode";
   const n = snapshot.nodes[targetId];
   if (!n) return;
-  const capacity = n.tankCapacityLitres || 1000;
+  const capacity = n.tankCapacityLitres || TANK_TOTAL_CAPACITY_LITRES;
   const clampedVol = Math.max(0, Math.min(capacity, startingLitres));
   const fillPct = Number(((clampedVol / capacity) * 100).toFixed(1));
-  const waterCm = Number(((fillPct / 100) * 200).toFixed(1));
-  const distanceCm = Number((200 - waterCm).toFixed(1));
+  const waterCm = getTankHeightAtVolume(clampedVol);
+  const distanceCm = Number((TANK_HEIGHT_CM - waterCm).toFixed(2));
 
   snapshot.nodes[targetId] = {
     ...n,
@@ -1045,6 +1120,16 @@ export async function resetTankCalculatedVolume(
  * Returns UI tone, badge styling, and title for a tank level status.
  */
 export function getTankStatusBadge(status?: TankStatus, fillPercent: number = 0) {
+  if (status === "offline") {
+    return {
+      status: "offline" as const,
+      label: "Wemos Offline (Level 0)",
+      tone: "muted" as const,
+      color: "text-muted-foreground",
+      badgeClass: "bg-muted/20 text-muted-foreground border border-border/40",
+      description: "Wemos controller is offline. Tank level reading is zeroed.",
+    };
+  }
   if (status === "sensor_error") {
     return {
       status: "sensor_error" as const,

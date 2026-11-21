@@ -252,10 +252,10 @@ function SettingsPage() {
                 </span>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {[
-                    { label: "Full (1000L)", vol: 1000 },
-                    { label: "850L (Normal)", vol: 850 },
-                    { label: "500L (Half)", vol: 500 },
-                    { label: "200L (Refill)", vol: 200 },
+                    { label: "Full (1.24L / 128mm)", vol: 1.24 },
+                    { label: "Normal (1.00L / 108mm)", vol: 1.00 },
+                    { label: "Half (0.62L / 73mm)", vol: 0.62 },
+                    { label: "Refill (0.25L / 34mm)", vol: 0.25 },
                   ].map((preset) => (
                     <Button
                       key={preset.vol}
@@ -364,25 +364,37 @@ function SettingsPage() {
                 <div>
                   <div className="text-[10px] text-muted-foreground">Water Level</div>
                   <div className="font-mono font-bold text-foreground text-sm mt-0.5">
-                    {(node?.tankWaterLevelCm ?? 0).toFixed(1)} cm
+                    {(node?.online ? (node?.tankWaterLevelCm ?? 0) : 0).toFixed(1)} cm
+                  </div>
+                  <div className="text-[9px] text-muted-foreground mt-0.5">
+                    {Math.round((node?.online ? (node?.tankWaterLevelCm ?? 0) : 0) * 10)} mm / 128 mm
                   </div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-muted-foreground">Air Gap (Sensor)</div>
+                  <div className="text-[10px] text-muted-foreground">Air Gap (Distance)</div>
                   <div className="font-mono font-bold text-cyan-400 text-sm mt-0.5">
-                    {(node?.tankDistanceCm ?? 0).toFixed(1)} cm
+                    {(node?.online ? (node?.tankDistanceCm ?? 12.8) : 12.8).toFixed(1)} cm
+                  </div>
+                  <div className="text-[9px] text-muted-foreground mt-0.5">
+                    {Math.round((node?.online ? (node?.tankDistanceCm ?? 12.8) : 12.8) * 10)} mm air gap
                   </div>
                 </div>
                 <div>
                   <div className="text-[10px] text-muted-foreground">Fill Percentage</div>
                   <div className="font-mono font-bold text-emerald-400 text-sm mt-0.5">
-                    {(node?.tankFillPercent ?? 0).toFixed(1)}%
+                    {(node?.online ? (node?.tankFillPercent ?? 0) : 0).toFixed(1)}%
+                  </div>
+                  <div className="text-[9px] text-muted-foreground mt-0.5">
+                    {node?.online ? "Active telemetry" : "Offline (0%)"}
                   </div>
                 </div>
                 <div>
                   <div className="text-[10px] text-muted-foreground">Water Volume</div>
                   <div className="font-mono font-bold text-foreground text-sm mt-0.5">
-                    {(node?.tankWaterVolumeLitres ?? 0).toFixed(0)} L
+                    {(node?.online ? (node?.tankWaterVolumeLitres ?? 0) : 0).toFixed(2)} L
+                  </div>
+                  <div className="text-[9px] text-muted-foreground mt-0.5">
+                    {Math.round((node?.online ? (node?.tankWaterVolumeLitres ?? 0) : 0) * 1000)} mL of 1236 mL
                   </div>
                 </div>
               </div>

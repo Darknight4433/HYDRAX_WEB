@@ -174,7 +174,7 @@ export function Overview() {
               Pump {isPumpActive ? "RUNNING" : "OFF"}
             </StatusPill>
             <StatusPill tone="info">
-              Tank {(node?.tankFillPercent ?? 83.8).toFixed(0)}%
+              Tank {node?.online ? (node?.tankFillPercent ?? 0).toFixed(0) : "0"}%
             </StatusPill>
             {node?.buttonPressed && (
               <StatusPill tone="warning" pulse>

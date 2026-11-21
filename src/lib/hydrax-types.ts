@@ -13,7 +13,7 @@ export type AlertType =
   | "ai_prediction";
 
 // Tank & Pump Types (HYDRAXX v0.3.0)
-export type TankStatus = "normal" | "low" | "critical" | "full" | "sensor_error";
+export type TankStatus = "normal" | "low" | "critical" | "full" | "sensor_error" | "offline";
 export type TankLevelSource = "ultrasonic" | "calculated";
 export type PumpState = "on" | "off";
 export type PumpMode = "auto" | "manual";

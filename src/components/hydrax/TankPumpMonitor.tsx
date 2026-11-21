@@ -48,24 +48,25 @@ export function TankPumpMonitor({
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Strictly real telemetry populated from Firebase RTDB (no false fallbacks)
-  const fillPct = node?.tankFillPercent ?? 0;
-  const capacity = node?.tankCapacityLitres ?? 1000;
-  const volume = node?.tankWaterVolumeLitres ?? 0;
-  const waterLevelCm = node?.tankWaterLevelCm ?? 0;
-  const distanceCm = node?.tankDistanceCm ?? 0;
-  const statusInfo = getTankStatusBadge(node?.tankStatus, fillPct);
+  const isOnline = Boolean(node?.online);
+  const fillPct = isOnline ? (node?.tankFillPercent ?? 0) : 0;
+  const capacity = node?.tankCapacityLitres ?? 1.24;
+  const volume = isOnline ? (node?.tankWaterVolumeLitres ?? 0) : 0;
+  const waterLevelCm = isOnline ? (node?.tankWaterLevelCm ?? 0) : 0;
+  const distanceCm = isOnline ? (node?.tankDistanceCm ?? 12.8) : 12.8;
+  const statusInfo = getTankStatusBadge(isOnline ? node?.tankStatus : "offline", fillPct);
 
-  const isCalculatedMode = (node?.tankLevelSource ?? "calculated") === "calculated";
-  const flowRate = node?.flowRate ?? 0;
-  const isPumpActive = node?.pumpState === "on" || Boolean(node?.pumpActive);
+  const flowRate = isOnline ? (node?.flowRate ?? 0) : 0;
+  const isPumpActive = isOnline && (node?.pumpState === "on" || Boolean(node?.pumpActive));
   const isAuto = (node?.pumpMode ?? "auto") === "auto";
   const startPct = node?.pumpStartLevelPercent ?? 20;
   const stopPct = node?.pumpStopLevelPercent ?? 90;
 
-  // Rate calculations
-  const pumpRate = isPumpActive ? 15.0 : 0;
+  // Rate calculations for frustum tank (128mm height, 95mm bottom, 126mm top)
+  const pumpRate = isPumpActive ? 0.60 : 0;
   const netRate = pumpRate - flowRate;
-  const levelDropRateCmMin = Number((flowRate / 5.0).toFixed(2));
+  const avgAreaCm2 = Math.PI * 5.525 * 5.525;
+  const levelDropRateCmMin = Number(((flowRate * 1000.0) / avgAreaCm2).toFixed(2));
   const depletionRateLpm = flowRate;
 
   // Estimated depletion ETA
@@ -178,19 +179,19 @@ export function TankPumpMonitor({
         <div className="md:col-span-5 lg:col-span-4 flex flex-col items-center justify-between rounded-2xl border border-cyan-500/30 bg-black/40 p-4 shadow-inner">
           <div className="w-full flex items-center justify-between text-xs text-muted-foreground mb-3">
             <span className="flex items-center gap-1 font-semibold text-cyan-400">
-              <Layers className="h-3.5 w-3.5" /> Storage Tank
+              <Layers className="h-3.5 w-3.5" /> Storage Tank (128mm × 95–126mm)
             </span>
             <span className="font-mono text-[11px] text-foreground">
-              {capacity.toLocaleString()} Litres Total
+              {capacity.toFixed(2)} Litres Total (1236 mL)
             </span>
           </div>
 
-          {/* Animated Water Cylinder */}
+          {/* Animated Water Cylinder (Frustum: 95mm base to 126mm top, 128mm height) */}
           <div className="relative w-36 sm:w-44 h-56 rounded-2xl border-2 border-cyan-500/40 bg-slate-950/80 shadow-2xl overflow-hidden flex flex-col justify-end p-1">
             {/* Level Sensor Cap at top */}
             <div className="absolute top-1 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-black/80 px-2 py-0.5 rounded-full border border-cyan-500/40 z-20">
               <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping" />
-              <span className="text-[9px] font-mono text-cyan-300">Auto-Level Engine</span>
+              <span className="text-[9px] font-mono text-cyan-300">Auto-Level (128mm)</span>
             </div>
 
             {/* Ultrasonic Sonic Waves Graphic */}
@@ -200,14 +201,14 @@ export function TankPumpMonitor({
               <div className="w-12 h-0.5 bg-cyan-400 rounded-full" />
             </div>
 
-            {/* Scale Markings on right */}
+            {/* Scale Markings on right (128mm tank height) */}
             <div className="absolute inset-y-3 right-1 flex flex-col justify-between text-[8px] font-mono font-semibold text-muted-foreground/80 z-20 pointer-events-none pr-1">
-              <span>100%</span>
+              <span>128mm (100%)</span>
               <span className="text-cyan-400">90% Stop</span>
               <span>75%</span>
-              <span>50%</span>
+              <span>73mm (50%)</span>
               <span className="text-amber-400">20% Start</span>
-              <span>0%</span>
+              <span>0mm (0%)</span>
             </div>
 
             {/* Hysteresis Threshold Guideline: Stop Cutoff (90%) */}
@@ -246,7 +247,7 @@ export function TankPumpMonitor({
                   {fillPct.toFixed(1)}%
                 </div>
                 <div className="text-[10px] font-medium text-white/90 mt-0.5">
-                  {volume.toFixed(0)} L stored
+                  {volume.toFixed(2)} L ({Math.round(volume * 1000)} mL)
                 </div>
               </div>
             </div>
@@ -269,7 +270,7 @@ export function TankPumpMonitor({
               <div className="mt-1 text-lg sm:text-xl font-bold font-mono text-foreground">
                 {waterLevelCm.toFixed(1)} <span className="text-xs font-normal text-muted-foreground">cm</span>
               </div>
-              <div className="text-[10px] text-muted-foreground">Tank height ~200cm</div>
+              <div className="text-[10px] text-muted-foreground">{Math.round(waterLevelCm * 10)} mm of 128 mm</div>
             </div>
 
             <div className="rounded-xl border border-border/40 bg-black/30 p-2.5">
@@ -279,7 +280,7 @@ export function TankPumpMonitor({
               <div className="mt-1 text-lg sm:text-xl font-bold font-mono text-cyan-400">
                 {distanceCm.toFixed(1)} <span className="text-xs font-normal text-muted-foreground">cm</span>
               </div>
-              <div className="text-[10px] text-muted-foreground">Sensor to surface</div>
+              <div className="text-[10px] text-muted-foreground">{Math.round(distanceCm * 10)} mm air gap</div>
             </div>
 
             <div className="rounded-xl border border-border/40 bg-black/30 p-2.5">
@@ -287,9 +288,9 @@ export function TankPumpMonitor({
                 Water Stored
               </div>
               <div className="mt-1 text-lg sm:text-xl font-bold font-mono text-emerald-400">
-                {volume.toFixed(0)} <span className="text-xs font-normal text-muted-foreground">L</span>
+                {volume.toFixed(2)} <span className="text-xs font-normal text-muted-foreground">L</span>
               </div>
-              <div className="text-[10px] text-muted-foreground">Of {capacity}L max</div>
+              <div className="text-[10px] text-muted-foreground">{Math.round(volume * 1000)} mL of {capacity.toFixed(2)}L</div>
             </div>
 
             {/* Level Decrease Rate Tile */}
@@ -307,14 +308,14 @@ export function TankPumpMonitor({
                       : "text-muted-foreground"
                 }`}
               >
-                {flowRate > 0 ? `-${depletionRateLpm.toFixed(2)}` : isPumpActive ? `+${(15.0 - flowRate).toFixed(2)}` : "0.00"}{" "}
+                {flowRate > 0 ? `-${depletionRateLpm.toFixed(2)}` : isPumpActive ? `+${(pumpRate - flowRate).toFixed(2)}` : "0.00"}{" "}
                 <span className="text-xs font-normal text-muted-foreground">L/m</span>
               </div>
               <div className="text-[10px] text-muted-foreground">
                 {flowRate > 0
                   ? `-${levelDropRateCmMin} cm/min drop`
                   : isPumpActive
-                    ? "+3.0 cm/min refill"
+                    ? "+1.5 cm/min refill"
                     : "Static (No flow)"}
               </div>
             </div>
