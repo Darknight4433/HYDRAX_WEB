@@ -146,10 +146,6 @@ function SettingsPage() {
       } catch { }
       if (pendingPhRef.current != null) {
         updateNodePh(node?.id || "testNode", pendingPhRef.current);
-        const s = getPhStatus(pendingPhRef.current);
-        toast.success(
-          `pH set to ${pendingPhRef.current.toFixed(1)} (${s.status}) — Synced to Dashboard!`,
-        );
       }
     }
   };
@@ -658,7 +654,6 @@ function SettingsPage() {
                   try {
                     await updateNodePh(node?.id || "testNode", 4.5);
                     setPhInput("4.5");
-                    toast.success("Switched to ACIDIC (4.50 pH) — Acidic Contamination Alert dispatched to phone!");
                   } catch (err: unknown) {
                     const msg = err instanceof Error ? err.message : String(err);
                     toast.error(`Failed to update pH: ${msg}`);
@@ -692,7 +687,6 @@ function SettingsPage() {
                     try {
                       await updateNodePh(node?.id || "testNode", 4.5);
                       setPhInput("4.5");
-                      toast.success("Switched to ACIDIC (4.50 pH) — Contamination push alert dispatched to phone!");
                     } catch (err: unknown) {
                       const msg = err instanceof Error ? err.message : String(err);
                       toast.error(`Failed to update pH: ${msg}`);
@@ -716,7 +710,6 @@ function SettingsPage() {
                   try {
                     await updateNodePh(node?.id || "testNode", 7.0);
                     setPhInput("7.0");
-                    toast.success("Switched to NEUTRAL (7.00 pH) — Dashboard updated in realtime!");
                   } catch (err: unknown) {
                     const msg = err instanceof Error ? err.message : String(err);
                     toast.error(`Failed to update pH: ${msg}`);
@@ -750,7 +743,6 @@ function SettingsPage() {
                     try {
                       await updateNodePh(node?.id || "testNode", 7.0);
                       setPhInput("7.0");
-                      toast.success("Switched to NEUTRAL (7.00 pH) — Dashboard updated in realtime!");
                     } catch (err: unknown) {
                       const msg = err instanceof Error ? err.message : String(err);
                       toast.error(`Failed to update pH: ${msg}`);
@@ -774,7 +766,6 @@ function SettingsPage() {
                   try {
                     await updateNodePh(node?.id || "testNode", 9.0);
                     setPhInput("9.0");
-                    toast.success("Switched to BASIC / ALKALINE (9.00 pH) — Caustic contamination alert dispatched to phone!");
                   } catch (err: unknown) {
                     const msg = err instanceof Error ? err.message : String(err);
                     toast.error(`Failed to update pH: ${msg}`);
@@ -808,7 +799,6 @@ function SettingsPage() {
                     try {
                       await updateNodePh(node?.id || "testNode", 9.0);
                       setPhInput("9.0");
-                      toast.success("Switched to BASIC / ALKALINE (9.00 pH) — Caustic contamination alert dispatched to phone!");
                     } catch (err: unknown) {
                       const msg = err instanceof Error ? err.message : String(err);
                       toast.error(`Failed to update pH: ${msg}`);
@@ -967,7 +957,6 @@ function SettingsPage() {
                     className="h-7 text-xs border-rose-500/40 text-rose-300 hover:bg-rose-500/20 gap-1.5"
                     onClick={() => {
                       triggerContaminationTest("acidic");
-                      toast.success("Acidic Contamination push notification dispatched to phone!");
                     }}
                   >
                     <Bell className="h-3 w-3 text-rose-400" /> Test Acidic Alert
@@ -978,7 +967,6 @@ function SettingsPage() {
                     className="h-7 text-xs border-purple-500/40 text-purple-300 hover:bg-purple-500/20 gap-1.5"
                     onClick={() => {
                       triggerContaminationTest("basic");
-                      toast.success("Basic Contamination push notification dispatched to phone!");
                     }}
                   >
                     <Bell className="h-3 w-3 text-purple-400" /> Test Basic Alert

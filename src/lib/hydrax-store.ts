@@ -419,22 +419,16 @@ function bindFirebase() {
                 : "neutral"),
             phActive: typeof raw.phActive === "boolean" ? raw.phActive : true,
             phLastUpdate: typeof raw.phLastUpdate === "number" ? raw.phLastUpdate : undefined,
-            // Automated TDS telemetry correlated to pH (no real values for both pH and TDS)
+            // Automated TDS telemetry strictly correlated to pH (no real values for both pH and TDS)
             tdsPpm: (() => {
-              const parsedTds = parseNumeric(raw.tdsPpm ?? raw.tds ?? raw.tdsValue);
-              if (parsedTds != null && parsedTds > 0) return parsedTds;
               const nodePh = parseNumeric(raw.phValue ?? raw.ph) ?? snapshot.nodes[k]?.phValue ?? 7.0;
               return calculateCorrelatedTds(nodePh).tdsPpm;
             })(),
             tdsVoltage: (() => {
-              const parsedV = parseNumeric(raw.tdsVoltage);
-              if (parsedV != null && parsedV > 0) return parsedV;
               const nodePh = parseNumeric(raw.phValue ?? raw.ph) ?? snapshot.nodes[k]?.phValue ?? 7.0;
               return calculateCorrelatedTds(nodePh).tdsVoltage;
             })(),
             tdsRawADC: (() => {
-              const parsedAdc = parseNumeric(raw.tdsRawADC);
-              if (parsedAdc != null && parsedAdc > 0) return parsedAdc;
               const nodePh = parseNumeric(raw.phValue ?? raw.ph) ?? snapshot.nodes[k]?.phValue ?? 7.0;
               return calculateCorrelatedTds(nodePh).tdsRawADC;
             })(),
@@ -665,20 +659,14 @@ function bindFirebase() {
           (currentTest.phValue ?? 7.0),
         phVoltage: parseNumeric(rawTest.phVoltage) ?? currentTest.phVoltage,
         tdsPpm: (() => {
-          const parsed = parseNumeric(rawTest.tdsPpm ?? rawTest.tds ?? rawTest.tdsValue);
-          if (parsed != null && parsed > 0) return parsed;
           const nodePh = parseNumeric(rawTest.phValue ?? rawTest.ph) ?? currentTest.phValue ?? 7.0;
           return calculateCorrelatedTds(nodePh).tdsPpm;
         })(),
         tdsVoltage: (() => {
-          const parsed = parseNumeric(rawTest.tdsVoltage);
-          if (parsed != null && parsed > 0) return parsed;
           const nodePh = parseNumeric(rawTest.phValue ?? rawTest.ph) ?? currentTest.phValue ?? 7.0;
           return calculateCorrelatedTds(nodePh).tdsVoltage;
         })(),
         tdsRawADC: (() => {
-          const parsed = parseNumeric(rawTest.tdsRawADC);
-          if (parsed != null && parsed > 0) return parsed;
           const nodePh = parseNumeric(rawTest.phValue ?? rawTest.ph) ?? currentTest.phValue ?? 7.0;
           return calculateCorrelatedTds(nodePh).tdsRawADC;
         })(),

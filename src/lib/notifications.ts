@@ -218,16 +218,16 @@ export async function triggerContaminationTest(type: "acidic" | "basic"): Promis
   if (type === "acidic") {
     await sendWaterAbnormalityAlert(
       "abnormality_ph_acidic",
-      "🚨 High Acidic Water Contamination Detected!",
-      "Water pH measured at 4.50 (< 6.5). Critical corrosive hazard! Heavy metals leaching risk (Correlated TDS: ~576 ppm).",
+      "⚠️ Water Contamination Threshold Detected",
+      "Water pH detected at 4.50 (Acidic threshold breached: < 6.5). Elevated Correlated TDS: ~576 ppm (corrosive risk).",
       "critical",
       true, // force immediate delivery
     );
   } else {
     await sendWaterAbnormalityAlert(
       "abnormality_ph_basic",
-      "🚨 High Basic Water Contamination Detected!",
-      "Water pH measured at 9.00 (> 8.5). Critical caustic water hazard! Severe mineral scaling & disinfection loss (Correlated TDS: ~713 ppm).",
+      "⚠️ Water Contamination Threshold Detected",
+      "Water pH detected at 9.00 (Basic threshold breached: > 8.5). Elevated Correlated TDS: ~713 ppm (caustic scaling risk).",
       "critical",
       true, // force immediate delivery
     );
@@ -254,8 +254,8 @@ export function checkWaterTelemetryAbnormalities(snapshot: HydraxSnapshot): void
       lastPhState = "acidic";
       sendWaterAbnormalityAlert(
         "abnormality_ph_acidic",
-        "🚨 High Acidic Water Contamination Detected!",
-        `Water pH measured at ${ph.toFixed(2)} (< 6.5). Critical corrosive hazard! Heavy metals (Pb, Cu, Fe) leaching risk (Correlated TDS: ${tds != null ? tds.toFixed(0) : "576"} ppm).`,
+        "⚠️ Water Contamination Threshold Detected",
+        `Water pH detected at ${ph.toFixed(2)} (Acidic threshold breached: < 6.5). Elevated Correlated TDS: ${tds != null ? tds.toFixed(0) : "576"} ppm (corrosive risk).`,
         "critical",
         isNewTransition,
       );
@@ -264,8 +264,8 @@ export function checkWaterTelemetryAbnormalities(snapshot: HydraxSnapshot): void
       lastPhState = "basic";
       sendWaterAbnormalityAlert(
         "abnormality_ph_basic",
-        "🚨 High Basic Water Contamination Detected!",
-        `Water pH measured at ${ph.toFixed(2)} (> 8.5). Critical caustic water hazard! Severe mineral scaling & disinfectant loss alert (Correlated TDS: ${tds != null ? tds.toFixed(0) : "713"} ppm).`,
+        "⚠️ Water Contamination Threshold Detected",
+        `Water pH detected at ${ph.toFixed(2)} (Basic threshold breached: > 8.5). Elevated Correlated TDS: ${tds != null ? tds.toFixed(0) : "713"} ppm (caustic scaling risk).`,
         "critical",
         isNewTransition,
       );
