@@ -106,11 +106,7 @@ export function AnalyticsPage() {
               {formatWaterVolume(node?.todayUsage ?? 0).unit}
             </span>
           </div>
-          <div className="mt-1 text-[11px] text-muted-foreground">
-            {(node?.todayUsage ?? 0) >= 1.0
-              ? `${Math.round((node?.todayUsage ?? 0) * 1000).toLocaleString()} mL total`
-              : "Measured via pin D7"}
-          </div>
+          <div className="mt-1 text-[11px] text-muted-foreground">Measured via pin D7</div>
         </GlassCard>
 
         <GlassCard className="!p-4">

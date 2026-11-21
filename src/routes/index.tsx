@@ -145,10 +145,7 @@ export function Overview() {
       unit: formatWaterVolume(node?.todayUsage ?? 0).unit,
       icon: Droplets,
       accent: "from-accent/30 to-primary/20",
-      caption:
-        (node?.todayUsage ?? 0) >= 1.0
-          ? `${Math.round((node?.todayUsage ?? 0) * 1000).toLocaleString()} mL total`
-          : "Increments in mL (L when ≥ 1.0 L)",
+      caption: "Water consumption (mL)",
       action: (
         <button
           type="button"
@@ -173,7 +170,7 @@ export function Overview() {
     {
       label: "Operating Mode",
       value: (node?.operatingMode ?? "auto").toUpperCase(),
-      unit: node?.manualOverride ? "(Manual)" : "(Auto)",
+      unit: (node?.operatingMode ?? "auto") === "auto" ? "(Normal)" : "(Manual)",
       icon: Cpu,
       accent: "from-sky-400/20 to-primary/10",
       caption: `Active limit: ${currentThreshold} L/min`,
@@ -369,8 +366,9 @@ export function Overview() {
             <CircularGauge
               value={node?.flowRate ?? 0}
               max={currentThreshold}
-              unit="L/m"
-              label={`Current / Ceiling (${currentThreshold} L/m)`}
+              unit="L/min"
+              decimals={2}
+              label={`Current / Ceiling (${currentThreshold} L/min)`}
             />
           </div>
 
@@ -678,14 +676,6 @@ export function Overview() {
                   </span>
                 </div>
               </div>
-              {(node?.todayUsage ?? 0) >= 1.0 && (
-                <div className="text-right">
-                  <div className="text-[10px] text-muted-foreground">Equivalent</div>
-                  <div className="text-xs font-mono font-semibold text-cyan-400">
-                    {Math.round((node?.todayUsage ?? 0) * 1000).toLocaleString()} mL
-                  </div>
-                </div>
-              )}
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-lg bg-black/20 p-3">

@@ -36,32 +36,46 @@ export function format12HourTime(
 }
 
 /**
- * Formats water volume: shows milliliters (mL) when under 1.0 Litre,
- * and Litres (L) only once it reaches or exceeds 1.0 Litre.
+ * Formats water volume directly in milliliters (mL) from Firebase.
+ * Shows milliliter (mL) directly for the value from Firebase.
+ * If the value reaches or exceeds 1,000 mL (1 Litre), automatically displays Litres (L).
  */
-export function formatWaterVolume(litres: number | null | undefined): {
+export function formatWaterVolume(firebaseValue: number | null | undefined): {
   value: string;
   unit: string;
   formatted: string;
-  alternate: string;
-  isLitres: boolean;
 } {
-  const val = typeof litres === "number" && !isNaN(litres) ? Math.max(0, litres) : 0;
-  if (val >= 1.0) {
-    const ml = Math.round(val * 1000);
+  const val = typeof firebaseValue === "number" && !isNaN(firebaseValue) ? Math.max(0, firebaseValue) : 0;
+  if (val >= 1000) {
+    const litres = val / 1000;
     return {
-      value: val.toFixed(2),
+      value: litres.toFixed(2),
       unit: "L",
-      formatted: `${val.toFixed(2)} L`,
-      alternate: `${ml.toLocaleString()} mL`,
-      isLitres: true,
+      formatted: `${litres.toFixed(2)} L`,
     };
   }
+  const str = Number.isInteger(val) ? val.toString() : val.toFixed(2);
+  return {
+    value: str,
+    unit: "mL",
+    formatted: `${str} mL`,
+  };
+}
+
+/**
+ * Formats tank water volume: Converts reservoir volume (stored in Litres in Firebase)
+ * directly into milliliters (mL) for clean, unified display.
+ */
+export function formatTankVolume(litres: number | null | undefined): {
+  value: string;
+  unit: string;
+  formatted: string;
+} {
+  const val = typeof litres === "number" && !isNaN(litres) ? Math.max(0, litres) : 0;
   const ml = Math.round(val * 1000);
   return {
     value: String(ml),
     unit: "mL",
     formatted: `${ml} mL`,
-    alternate: `${val.toFixed(3)} L`,
   };
 }

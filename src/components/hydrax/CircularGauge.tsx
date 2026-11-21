@@ -7,6 +7,7 @@ interface Props {
   unit?: string;
   size?: number;
   color?: string;
+  decimals?: number;
 }
 
 export function CircularGauge({
@@ -16,11 +17,13 @@ export function CircularGauge({
   unit,
   size = 160,
   color = "var(--primary)",
+  decimals,
 }: Props) {
   const pct = Math.max(0, Math.min(1, value / max));
   const r = (size - 20) / 2;
   const c = 2 * Math.PI * r;
   const dash = c * pct;
+  const precision = decimals != null ? decimals : (value < 10 ? 2 : 0);
   return (
     <div
       className="relative inline-flex items-center justify-center"
@@ -52,7 +55,7 @@ export function CircularGauge({
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <div className="text-3xl font-semibold tabular-nums text-foreground">
-          {value.toFixed(value < 10 ? 1 : 0)}
+          {value.toFixed(precision)}
           {unit && <span className="ml-1 text-sm text-muted-foreground">{unit}</span>}
         </div>
         {label && (

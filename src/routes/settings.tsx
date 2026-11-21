@@ -57,7 +57,7 @@ import {
   useHydrax,
 } from "@/lib/hydrax-store";
 import { LiveSyncClock } from "@/components/hydrax/LiveSyncClock";
-import { format12HourTime, formatWaterVolume } from "@/lib/utils";
+import { format12HourTime, formatTankVolume, formatWaterVolume } from "@/lib/utils";
 import { formatDistanceToNowStrict } from "date-fns";
 import { Capacitor } from "@capacitor/core";
 
@@ -309,14 +309,6 @@ function SettingsPage() {
                   <span className="font-mono font-bold text-foreground">
                     {formatWaterVolume(node?.todayUsage ?? 0).formatted}
                   </span>
-                  {(node?.todayUsage ?? 0) >= 1.0 && (
-                    <span className="text-[10px] text-muted-foreground font-mono">
-                      ({Math.round((node?.todayUsage ?? 0) * 1000).toLocaleString()} mL)
-                    </span>
-                  )}
-                  <span className="text-[10px] text-muted-foreground">
-                    (mL under 1.0 L · L when ≥ 1.0 L)
-                  </span>
                 </div>
                 <Button
                   size="xs"
@@ -544,10 +536,10 @@ function SettingsPage() {
                 <div>
                   <div className="text-[10px] text-muted-foreground">Water Volume</div>
                   <div className="font-mono font-bold text-foreground text-sm mt-0.5">
-                    {formatWaterVolume(node?.tankWaterVolumeLitres ?? 1.00).formatted}
+                    {formatTankVolume(node?.tankWaterVolumeLitres ?? 1.00).formatted}
                   </div>
                   <div className="text-[9px] text-muted-foreground mt-0.5">
-                    {formatWaterVolume(node?.tankWaterVolumeLitres ?? 1.00).formatted} of 1236 mL
+                    {formatTankVolume(node?.tankWaterVolumeLitres ?? 1.00).formatted} of 1236 mL
                   </div>
                 </div>
               </div>
