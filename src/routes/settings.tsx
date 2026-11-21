@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
+import * as SliderPrimitive from "@radix-ui/react-slider";
 import { firebaseConfigured } from "@/lib/firebase";
 import {
   sendWaterAbnormalityAlert,
@@ -80,14 +81,11 @@ function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const node = data.nodes.testNode || Object.values(data.nodes)[0];
 
-  const currentPh = node?.phValue ?? node?.ph ?? 6.6;
-  const [phInput, setPhInput] = useState(String(currentPh));
-  const [isDragging, setIsDragging] = useState(false);
+  const currentPh = node?.phValue ?? node?.ph ?? 7.0;
+  const [activePh, setActivePh] = useState<number>(Number(currentPh) || 7.0);
+  const [phInputText, setPhInputText] = useState<string>((Number(currentPh) || 7.0).toFixed(1));
   const [savingPh, setSavingPh] = useState(false);
-
-  const trackRef = useRef<HTMLDivElement>(null);
-  const lastWriteTimeRef = useRef<number>(0);
-  const pendingPhRef = useRef<number | null>(null);
+  const isInteractingRef = useRef<boolean>(false);
 
   // Tank & Pump Hysteresis Settings (HYDRAXX v0.3.0)
   const [startLevel, setStartLevel] = useState(node?.pumpStartLevelPercent ?? 20);
@@ -100,59 +98,46 @@ function SettingsPage() {
   }, [node?.pumpStartLevelPercent, node?.pumpStopLevelPercent]);
 
   useEffect(() => {
-    if (!isDragging && (node?.phValue != null || node?.ph != null)) {
-      setPhInput(String(node.phValue ?? node.ph));
-    }
-  }, [node?.phValue, node?.ph, isDragging]);
-
-  const applyPhFromPointer = useCallback(
-    (clientX: number, isFinal: boolean = false) => {
-      if (!trackRef.current) return;
-      const rect = trackRef.current.getBoundingClientRect();
-      if (rect.width <= 0) return;
-      const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-      const newPh = Math.round(ratio * 14 * 10) / 10;
-      setPhInput(newPh.toFixed(1));
-      pendingPhRef.current = newPh;
-
-      const now = Date.now();
-      if (isFinal || now - lastWriteTimeRef.current > 75) {
-        lastWriteTimeRef.current = now;
-        updateNodePh(node?.id || "testNode", newPh);
+    if (!isInteractingRef.current && (node?.phValue != null || node?.ph != null)) {
+      const val = Number(node.phValue ?? node.ph);
+      if (!isNaN(val)) {
+        setActivePh(val);
+        setPhInputText(val.toFixed(1));
       }
-    },
-    [node?.id],
-  );
+    }
+  }, [node?.phValue, node?.ph]);
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    setIsDragging(true);
+  const commitPhChange = async (val: number) => {
+    const clamped = Math.max(0, Math.min(14, Math.round(val * 10) / 10));
+    setActivePh(clamped);
+    setPhInputText(clamped.toFixed(1));
+    setSavingPh(true);
     try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch { }
-    applyPhFromPointer(e.clientX, false);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (isDragging) {
-      applyPhFromPointer(e.clientX, false);
+      await updateNodePh(node?.id || "testNode", clamped);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Failed to update pH: ${msg}`);
+    } finally {
+      setSavingPh(false);
     }
   };
 
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (isDragging) {
-      setIsDragging(false);
-      try {
-        e.currentTarget.releasePointerCapture(e.pointerId);
-      } catch { }
-      if (pendingPhRef.current != null) {
-        updateNodePh(node?.id || "testNode", pendingPhRef.current);
-      }
+  const stepPh = (delta: number) => {
+    const next = Math.max(0, Math.min(14, Math.round((activePh + delta) * 10) / 10));
+    commitPhChange(next);
+  };
+
+  const handleDirectInputSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const parsed = parseFloat(phInputText);
+    if (!isNaN(parsed)) {
+      commitPhChange(parsed);
     }
   };
 
   const activePhStatus = getPhStatus(currentPh);
-  const selectedPhStatus = getPhStatus(parseFloat(phInput) || currentPh);
-  const liveTds = calculateCorrelatedTds(parseFloat(phInput) || currentPh);
+  const selectedPhStatus = getPhStatus(activePh);
+  const liveTds = calculateCorrelatedTds(activePh);
   const currentTds = node?.tdsPpm ?? liveTds.tdsPpm;
   const tdsStatus = getTdsStatus(liveTds.tdsPpm);
 
@@ -484,150 +469,207 @@ function SettingsPage() {
             </div>
 
             {/* Interactive Draggable Spectrum Bar */}
-            <div className="mt-4 rounded-xl border border-border/40 bg-black/40 p-3.5 space-y-3">
+            <div className="mt-4 rounded-xl border border-border/40 bg-black/40 p-4 space-y-4">
               <div className="flex items-center justify-between text-xs font-semibold">
                 <span className="text-rose-400">🔴 Acidic (&lt; 6.5)</span>
                 <span className="text-emerald-400">🟢 Safe Neutral (6.5 – 8.5)</span>
                 <span className="text-purple-400">🟣 Basic / Alkaline (&gt; 8.5)</span>
               </div>
 
-              {/* The Draggable Bar Track Container */}
-              <div className="relative w-full pt-7 pb-2">
-                <div
-                  ref={trackRef}
-                  onPointerDown={handlePointerDown}
-                  onPointerMove={handlePointerMove}
-                  onPointerUp={handlePointerUp}
-                  onPointerCancel={handlePointerUp}
-                  className="relative h-11 w-full rounded-2xl bg-gradient-to-r from-rose-500 via-amber-400 via-emerald-400 to-indigo-600 shadow-inner border border-white/20 select-none cursor-pointer touch-none flex items-center px-1"
+              {/* Radix Touch-Optimized Drag Slider Track */}
+              <div className="pt-6 pb-2">
+                <SliderPrimitive.Root
+                  min={0}
+                  max={14}
+                  step={0.1}
+                  value={[activePh]}
+                  onValueChange={([val]) => {
+                    isInteractingRef.current = true;
+                    setActivePh(val);
+                    setPhInputText(val.toFixed(1));
+                  }}
+                  onValueCommit={([val]) => {
+                    isInteractingRef.current = false;
+                    commitPhChange(val);
+                  }}
+                  className="relative flex w-full touch-none select-none items-center h-12 cursor-pointer"
+                  aria-label="Water pH Slider"
                 >
-                  {/* Graduation marks inside track */}
-                  <div className="w-full flex justify-between px-3 text-[10px] sm:text-[11px] font-extrabold text-black/75 select-none pointer-events-none">
-                    <span>0</span>
-                    <span>2</span>
-                    <span>4</span>
-                    <span>6</span>
-                    <span className="bg-white/95 px-2 py-0.5 rounded text-black font-extrabold shadow-sm">
-                      7 Neutral
-                    </span>
-                    <span>8</span>
-                    <span>10</span>
-                    <span>12</span>
-                    <span>14</span>
-                  </div>
+                  <SliderPrimitive.Track className="relative h-11 w-full grow overflow-hidden rounded-2xl bg-gradient-to-r from-rose-500 via-amber-400 via-emerald-400 to-indigo-600 shadow-inner border border-white/20 flex items-center">
+                    {/* Graduation marks inside track */}
+                    <div className="w-full flex justify-between px-3 text-[10px] sm:text-[11px] font-extrabold text-black/80 select-none pointer-events-none">
+                      <span>0</span>
+                      <span>2</span>
+                      <span>4</span>
+                      <span>6</span>
+                      <span className="bg-white/95 px-2 py-0.5 rounded text-black font-extrabold shadow-sm">
+                        7 Neutral
+                      </span>
+                      <span>8</span>
+                      <span>10</span>
+                      <span>12</span>
+                      <span>14</span>
+                    </div>
+                  </SliderPrimitive.Track>
 
-                  {/* Draggable Thumb Indicator */}
-                  <div
-                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-10 w-10 rounded-full border-2 border-white bg-black/90 shadow-2xl flex items-center justify-center pointer-events-none transition-transform"
-                    style={{
-                      left: `${Math.max(2, Math.min(98, (parseFloat(phInput || "7.2") / 14) * 100))}%`,
-                    }}
+                  {/* Radix Thumb with Glowing Status Dot */}
+                  <SliderPrimitive.Thumb
+                    className="block h-10 w-10 rounded-full border-2 border-white bg-black/95 shadow-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 cursor-grab active:cursor-grabbing hover:scale-105 active:scale-110 transition-transform relative flex items-center justify-center"
+                    aria-label="pH Level Thumb"
                   >
                     <div
-                      className={`h-4 w-4 rounded-full ${parseFloat(phInput || "7.2") < 6.5
-                        ? "bg-rose-500 shadow-rose-500/80 shadow-md"
-                        : parseFloat(phInput || "7.2") > 8.5
-                          ? "bg-purple-500 shadow-purple-500/80 shadow-md"
-                          : "bg-emerald-400 shadow-emerald-400/80 shadow-md"
-                        } animate-pulse`}
+                      className={`h-4 w-4 rounded-full ${
+                        activePh < 6.5
+                          ? "bg-rose-500 shadow-rose-500/80 shadow-md"
+                          : activePh > 8.5
+                            ? "bg-purple-500 shadow-purple-500/80 shadow-md"
+                            : "bg-emerald-400 shadow-emerald-400/80 shadow-md"
+                      } animate-pulse`}
                     />
 
                     {/* Floating Tooltip Pill Above Thumb */}
                     <div
-                      className="absolute -top-8 px-2 py-0.5 rounded-md text-[10px] font-bold font-mono shadow-xl whitespace-nowrap border pointer-events-none"
+                      className="absolute -top-9 px-2.5 py-0.5 rounded-md text-[10px] font-bold font-mono shadow-xl whitespace-nowrap border pointer-events-none"
                       style={{
                         backgroundColor:
-                          parseFloat(phInput || "7.2") < 6.5
+                          activePh < 6.5
                             ? "rgba(225, 29, 72, 0.95)"
-                            : parseFloat(phInput || "7.2") > 8.5
+                            : activePh > 8.5
                               ? "rgba(147, 51, 234, 0.95)"
                               : "rgba(16, 185, 129, 0.95)",
                         borderColor: "rgba(255, 255, 255, 0.4)",
                         color: "#ffffff",
                       }}
                     >
-                      {parseFloat(phInput || "7.2").toFixed(1)} pH · {liveTds.tdsPpm} ppm
+                      {activePh.toFixed(1)} pH · {liveTds.tdsPpm} ppm
                       <div
                         className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent"
                         style={{
                           borderTopColor:
-                            parseFloat(phInput || "7.2") < 6.5
+                            activePh < 6.5
                               ? "rgba(225, 29, 72, 0.95)"
-                              : parseFloat(phInput || "7.2") > 8.5
+                              : activePh > 8.5
                                 ? "rgba(147, 51, 234, 0.95)"
                                 : "rgba(16, 185, 129, 0.95)",
                         }}
                       />
                     </div>
-                  </div>
-
-                  {/* Overlaid transparent range input for accessibility and keyboard navigation */}
-                  <input
-                    type="range"
-                    min="0"
-                    max="14"
-                    step="0.1"
-                    value={phInput}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value);
-                      if (!isNaN(val)) {
-                        applyPhFromPointer(e.target.valueAsNumber, false);
-                      }
-                    }}
-                    onPointerDown={() => setIsDragging(true)}
-                    onPointerUp={() => {
-                      setIsDragging(false);
-                      const val = parseFloat(phInput);
-                      if (!isNaN(val)) {
-                        updateNodePh(node?.id || "testNode", val);
-                      }
-                    }}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize touch-none"
-                    title="Drag directly across this colored bar to change water pH"
-                    aria-label="Water pH Drag Slider"
-                  />
-                </div>
+                  </SliderPrimitive.Thumb>
+                </SliderPrimitive.Root>
               </div>
 
-              {/* Realtime Bar Controls & Nudge Stepper */}
-              <div className="flex flex-wrap items-center justify-between text-xs text-muted-foreground pt-1 gap-2">
-                <div className="flex items-center gap-2">
+              {/* Quick Calibration Preset Pills */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <span className="text-[11px] text-muted-foreground font-semibold mr-1">
+                  Quick Presets:
+                </span>
+                {[
+                  { label: "4.0 Acidic", val: 4.0, color: "text-rose-400 border-rose-500/30 hover:bg-rose-500/10" },
+                  { label: "5.5 Low Acid", val: 5.5, color: "text-amber-400 border-amber-500/30 hover:bg-amber-500/10" },
+                  { label: "6.5 Safe Bound", val: 6.5, color: "text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10" },
+                  { label: "7.0 Safe Neutral", val: 7.0, color: "text-emerald-300 border-emerald-400/40 hover:bg-emerald-500/20 font-bold" },
+                  { label: "7.5 Optimal", val: 7.5, color: "text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10" },
+                  { label: "8.5 Upper Bound", val: 8.5, color: "text-purple-400 border-purple-500/30 hover:bg-purple-500/10" },
+                  { label: "9.0 Alkaline", val: 9.0, color: "text-purple-400 border-purple-500/30 hover:bg-purple-500/10" },
+                  { label: "10.5 High Base", val: 10.5, color: "text-indigo-400 border-indigo-500/30 hover:bg-indigo-500/10" },
+                ].map((preset) => (
+                  <button
+                    key={preset.val}
+                    type="button"
+                    onClick={() => commitPhChange(preset.val)}
+                    className={`text-xs px-2.5 py-1 rounded-lg border bg-black/40 transition-all active:scale-95 ${preset.color} ${
+                      Math.abs(activePh - preset.val) < 0.05 ? "ring-2 ring-primary bg-primary/20" : ""
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Stepper Buttons and Direct Number Input with Large Touch Targets */}
+              <div className="pt-2 border-t border-border/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                {/* Steppers */}
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[11px] uppercase tracking-wider font-semibold text-primary">
-                    👆 Drag Bar to Calibrate:
+                    Step Calibrate:
                   </span>
-                  <span className="text-foreground font-mono font-bold text-sm bg-black/50 border border-border/40 px-2.5 py-0.5 rounded-lg">
-                    {parseFloat(phInput || "7.2").toFixed(2)} pH
-                  </span>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() => {
-                        const cur = parseFloat(phInput || "7.2");
-                        const next = Math.max(0, Math.round((cur - 0.1) * 10) / 10);
-                        setPhInput(next.toFixed(1));
-                        updateNodePh(node?.id || "testNode", next);
-                      }}
-                      className="h-7 w-7 rounded-md bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center font-bold text-foreground transition-all"
-                      title="Step down 0.1 pH"
+                      onClick={() => stepPh(-1.0)}
+                      className="h-9 px-2.5 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center font-bold text-xs text-foreground transition-all border border-border/40"
+                      title="Step down 1.0 pH"
                     >
-                      <Minus className="h-3.5 w-3.5" />
+                      -1.0
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        const cur = parseFloat(phInput || "7.2");
-                        const next = Math.min(14, Math.round((cur + 0.1) * 10) / 10);
-                        setPhInput(next.toFixed(1));
-                        updateNodePh(node?.id || "testNode", next);
-                      }}
-                      className="h-7 w-7 rounded-md bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center font-bold text-foreground transition-all"
+                      onClick={() => stepPh(-0.1)}
+                      className="h-9 px-2.5 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center font-bold text-xs text-foreground transition-all border border-border/40"
+                      title="Step down 0.1 pH"
+                    >
+                      <Minus className="h-3.5 w-3.5 mr-0.5" /> 0.1
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => stepPh(0.1)}
+                      className="h-9 px-2.5 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center font-bold text-xs text-foreground transition-all border border-border/40"
                       title="Step up 0.1 pH"
                     >
-                      <Plus className="h-3.5 w-3.5" />
+                      <Plus className="h-3.5 w-3.5 mr-0.5" /> 0.1
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => stepPh(1.0)}
+                      className="h-9 px-2.5 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center font-bold text-xs text-foreground transition-all border border-border/40"
+                      title="Step up 1.0 pH"
+                    >
+                      +1.0
                     </button>
                   </div>
                 </div>
 
+                {/* Direct Number Input */}
+                <form
+                  onSubmit={handleDirectInputSubmit}
+                  className="flex items-center gap-2"
+                >
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    Exact pH:
+                  </span>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="14"
+                    value={phInputText}
+                    onChange={(e) => {
+                      setPhInputText(e.target.value);
+                      const val = parseFloat(e.target.value);
+                      if (!isNaN(val) && val >= 0 && val <= 14) {
+                        setActivePh(val);
+                      }
+                    }}
+                    onBlur={() => handleDirectInputSubmit()}
+                    className="h-9 w-20 text-center font-mono font-bold text-sm bg-black/60 border-border/60"
+                  />
+                  <Button
+                    type="submit"
+                    size="sm"
+                    variant="secondary"
+                    className="h-9 text-xs font-semibold px-3"
+                    disabled={savingPh}
+                  >
+                    Set pH
+                  </Button>
+                </form>
+              </div>
+
+              {/* Status Bar */}
+              <div className="flex items-center justify-between text-xs pt-1">
+                <span className="text-muted-foreground">
+                  Active Calibration: <strong className="text-foreground font-mono">{activePh.toFixed(2)} pH</strong> (Correlated TDS: <strong className="text-cyan-400 font-mono">{liveTds.tdsPpm.toFixed(1)} ppm</strong>)
+                </span>
                 <span className={`font-semibold flex items-center gap-1.5 text-xs ${selectedPhStatus.color}`}>
                   <span className="h-2 w-2 rounded-full bg-current animate-pulse" />
                   {selectedPhStatus.title}
@@ -649,18 +691,7 @@ function SettingsPage() {
                   ? "border-rose-500/80 bg-rose-500/15 ring-2 ring-rose-500/40 shadow-lg shadow-rose-500/20"
                   : "border-border/40 bg-black/25 hover:border-rose-500/50 hover:bg-rose-500/5"
                   }`}
-                onClick={async () => {
-                  setSavingPh(true);
-                  try {
-                    await updateNodePh(node?.id || "testNode", 4.5);
-                    setPhInput("4.5");
-                  } catch (err: unknown) {
-                    const msg = err instanceof Error ? err.message : String(err);
-                    toast.error(`Failed to update pH: ${msg}`);
-                  } finally {
-                    setSavingPh(false);
-                  }
-                }}
+                onClick={() => commitPhChange(4.5)}
               >
                 <div>
                   <div className="flex items-center justify-between">
@@ -681,18 +712,9 @@ function SettingsPage() {
                   variant={currentPh < 6.5 ? "default" : "outline"}
                   className="mt-3 w-full border-rose-500/40 text-rose-300 hover:bg-rose-500/20"
                   disabled={savingPh}
-                  onClick={async (e) => {
+                  onClick={(e) => {
                     e.stopPropagation();
-                    setSavingPh(true);
-                    try {
-                      await updateNodePh(node?.id || "testNode", 4.5);
-                      setPhInput("4.5");
-                    } catch (err: unknown) {
-                      const msg = err instanceof Error ? err.message : String(err);
-                      toast.error(`Failed to update pH: ${msg}`);
-                    } finally {
-                      setSavingPh(false);
-                    }
+                    commitPhChange(4.5);
                   }}
                 >
                   {currentPh < 6.5 ? "✓ Active (Acidic Mode)" : "Simulate Acidic (pH 4.5)"}
@@ -705,18 +727,7 @@ function SettingsPage() {
                   ? "border-emerald-500/80 bg-emerald-500/15 ring-2 ring-emerald-500/40 shadow-lg shadow-emerald-500/20"
                   : "border-border/40 bg-black/25 hover:border-emerald-500/50 hover:bg-emerald-500/5"
                   }`}
-                onClick={async () => {
-                  setSavingPh(true);
-                  try {
-                    await updateNodePh(node?.id || "testNode", 7.0);
-                    setPhInput("7.0");
-                  } catch (err: unknown) {
-                    const msg = err instanceof Error ? err.message : String(err);
-                    toast.error(`Failed to update pH: ${msg}`);
-                  } finally {
-                    setSavingPh(false);
-                  }
-                }}
+                onClick={() => commitPhChange(7.0)}
               >
                 <div>
                   <div className="flex items-center justify-between">
@@ -737,18 +748,9 @@ function SettingsPage() {
                   variant={currentPh >= 6.5 && currentPh <= 8.5 ? "default" : "outline"}
                   className="mt-3 w-full border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/20"
                   disabled={savingPh}
-                  onClick={async (e) => {
+                  onClick={(e) => {
                     e.stopPropagation();
-                    setSavingPh(true);
-                    try {
-                      await updateNodePh(node?.id || "testNode", 7.0);
-                      setPhInput("7.0");
-                    } catch (err: unknown) {
-                      const msg = err instanceof Error ? err.message : String(err);
-                      toast.error(`Failed to update pH: ${msg}`);
-                    } finally {
-                      setSavingPh(false);
-                    }
+                    commitPhChange(7.0);
                   }}
                 >
                   {currentPh >= 6.5 && currentPh <= 8.5 ? "✓ Active (Safe Neutral)" : "Simulate Neutral (pH 7.0)"}
@@ -761,18 +763,7 @@ function SettingsPage() {
                   ? "border-purple-500/80 bg-purple-500/15 ring-2 ring-purple-500/40 shadow-lg shadow-purple-500/20"
                   : "border-border/40 bg-black/25 hover:border-purple-500/50 hover:bg-purple-500/5"
                   }`}
-                onClick={async () => {
-                  setSavingPh(true);
-                  try {
-                    await updateNodePh(node?.id || "testNode", 9.0);
-                    setPhInput("9.0");
-                  } catch (err: unknown) {
-                    const msg = err instanceof Error ? err.message : String(err);
-                    toast.error(`Failed to update pH: ${msg}`);
-                  } finally {
-                    setSavingPh(false);
-                  }
-                }}
+                onClick={() => commitPhChange(9.0)}
               >
                 <div>
                   <div className="flex items-center justify-between">
@@ -793,18 +784,9 @@ function SettingsPage() {
                   variant={currentPh > 8.5 ? "default" : "outline"}
                   className="mt-3 w-full border-purple-500/40 text-purple-300 hover:bg-purple-500/20"
                   disabled={savingPh}
-                  onClick={async (e) => {
+                  onClick={(e) => {
                     e.stopPropagation();
-                    setSavingPh(true);
-                    try {
-                      await updateNodePh(node?.id || "testNode", 9.0);
-                      setPhInput("9.0");
-                    } catch (err: unknown) {
-                      const msg = err instanceof Error ? err.message : String(err);
-                      toast.error(`Failed to update pH: ${msg}`);
-                    } finally {
-                      setSavingPh(false);
-                    }
+                    commitPhChange(9.0);
                   }}
                 >
                   {currentPh > 8.5 ? "✓ Active (Alkaline Mode)" : "Simulate Alkaline (pH 9.0)"}
