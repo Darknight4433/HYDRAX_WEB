@@ -213,3 +213,17 @@
 @utility animate-float {
   animation: float-slow 4s ease-in-out infinite;
 }
+
+/* Hide any Lovable / GPT Engineer watermarks, badges or floating buttons */
+[id*="lovable"],
+[class*="lovable"],
+[data-lovable],
+#lovable-badge,
+.lovable-badge,
+a[href*="lovable.dev"],
+a[href*="lovable"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
