@@ -18,6 +18,7 @@ import { PageHeader } from "@/components/hydrax/PageHeader";
 import { StatusPill } from "@/components/hydrax/StatusPill";
 import { useHydrax } from "@/lib/hydrax-store";
 import { LiveSyncClock } from "@/components/hydrax/LiveSyncClock";
+import { formatWaterVolume } from "@/lib/utils";
 
 export const Route = createFileRoute("/analytics")({
   head: () => ({
@@ -100,10 +101,16 @@ export function AnalyticsPage() {
             Today's Consumption
           </div>
           <div className="mt-1 text-2xl font-bold tabular-nums text-foreground">
-            {(node?.todayUsage ?? 0).toFixed(2)}{" "}
-            <span className="text-xs font-normal text-muted-foreground">L</span>
+            {formatWaterVolume(node?.todayUsage ?? 0).value}{" "}
+            <span className="text-xs font-normal text-muted-foreground">
+              {formatWaterVolume(node?.todayUsage ?? 0).unit}
+            </span>
           </div>
-          <div className="mt-1 text-[11px] text-muted-foreground">Measured via pin D7</div>
+          <div className="mt-1 text-[11px] text-muted-foreground">
+            {(node?.todayUsage ?? 0) >= 1.0
+              ? `${Math.round((node?.todayUsage ?? 0) * 1000).toLocaleString()} mL total`
+              : "Measured via pin D7"}
+          </div>
         </GlassCard>
 
         <GlassCard className="!p-4">

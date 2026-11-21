@@ -1026,6 +1026,38 @@ export async function setTankLevelSource(source: TankLevelSource): Promise<void>
 }
 
 /**
+ * Reset today's cumulative water usage back to 0.00 (0 mL).
+ * Updates local state and syncs to Firebase RTDB so the hardware and UI start fresh.
+ */
+export async function resetTodayUsage(nodeId?: string): Promise<void> {
+  const targetId = nodeId || "testNode";
+  const n = snapshot.nodes[targetId] || snapshot.nodes.testNode;
+  const now = Date.now();
+  if (n) {
+    snapshot.nodes[targetId] = {
+      ...n,
+      todayUsage: 0,
+      lastUpdate: now,
+    };
+    emit();
+  }
+
+  const db = getDb();
+  if (db) {
+    try {
+      const payload = {
+        todayUsage: 0,
+        lastUpdate: now,
+      };
+      await update(ref(db, `/nodes/${targetId}`), payload);
+      await update(ref(db, `/hydrax/nodes/${targetId}`), payload);
+    } catch (err: unknown) {
+      console.error("Firebase resetTodayUsage error:", err);
+    }
+  }
+}
+
+/**
  * Reset starting tank volume for calculated hydrodynamic level mode.
  */
 export async function resetTankCalculatedVolume(

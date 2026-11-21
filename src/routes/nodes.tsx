@@ -9,7 +9,7 @@ import { useHydrax } from "@/lib/hydrax-store";
 import type { HydraxNode } from "@/lib/hydrax-types";
 import { formatDistanceToNowStrict } from "date-fns";
 import { LiveSyncClock } from "@/components/hydrax/LiveSyncClock";
-import { format12HourTime } from "@/lib/utils";
+import { format12HourTime, formatWaterVolume } from "@/lib/utils";
 
 export const Route = createFileRoute("/nodes")({
   head: () => ({
@@ -212,7 +212,11 @@ function NodeDetailCard({ node }: { node: HydraxNode }) {
             unit="ppm"
           />
           <Metric label="Active Ceiling" value={`${node.threshold}`} unit="L/min" />
-          <Metric label="Today's Litres" value={`${node.todayUsage.toFixed(2)}`} unit="L" />
+          <Metric
+            label="Today's Usage"
+            value={formatWaterVolume(node.todayUsage).value}
+            unit={formatWaterVolume(node.todayUsage).unit}
+          />
           <Metric label="WiFi Quality" value={node.signal ? `${node.signal}%` : "—"} unit="" />
         </div>
 

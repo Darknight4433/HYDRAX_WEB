@@ -43,13 +43,18 @@ export function formatWaterVolume(litres: number | null | undefined): {
   value: string;
   unit: string;
   formatted: string;
+  alternate: string;
+  isLitres: boolean;
 } {
   const val = typeof litres === "number" && !isNaN(litres) ? Math.max(0, litres) : 0;
   if (val >= 1.0) {
+    const ml = Math.round(val * 1000);
     return {
       value: val.toFixed(2),
       unit: "L",
       formatted: `${val.toFixed(2)} L`,
+      alternate: `${ml.toLocaleString()} mL`,
+      isLitres: true,
     };
   }
   const ml = Math.round(val * 1000);
@@ -57,5 +62,6 @@ export function formatWaterVolume(litres: number | null | undefined): {
     value: String(ml),
     unit: "mL",
     formatted: `${ml} mL`,
+    alternate: `${val.toFixed(3)} L`,
   };
 }

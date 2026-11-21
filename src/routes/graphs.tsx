@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { useHydrax } from "@/lib/hydrax-store";
 import { exportCSV, exportPDF } from "@/lib/export";
 import { LiveSyncClock } from "@/components/hydrax/LiveSyncClock";
+import { formatWaterVolume } from "@/lib/utils";
 
 export const Route = createFileRoute("/graphs")({
   head: () => ({
@@ -112,7 +113,7 @@ export function GraphsPage() {
                     heading: "Measured Consumption",
                     lines: [
                       `Current Flow Rate: ${(node?.flowRate ?? 0).toFixed(2)} L/min`,
-                      `Today's Volume: ${(node?.todayUsage ?? 0).toFixed(2)} Litres`,
+                      `Today's Volume: ${formatWaterVolume(node?.todayUsage ?? 0).formatted}`,
                       `Active Flow Ceiling: ${node?.threshold ?? 22} L/min`,
                     ],
                   },

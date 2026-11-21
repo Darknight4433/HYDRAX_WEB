@@ -18,6 +18,7 @@ import {
   Power,
   Radio,
   RefreshCw,
+  RotateCcw,
   Sliders,
   Smartphone,
   Sparkles,
@@ -47,6 +48,7 @@ import {
   getTankStatusBadge,
   getTdsStatus,
   resetTankCalculatedVolume,
+  resetTodayUsage,
   setPumpMode,
   setPumpState,
   setTankLevelSource,
@@ -297,6 +299,37 @@ function SettingsPage() {
                     </Button>
                   ))}
                 </div>
+              </div>
+
+              {/* Daily Water Usage Counter Calibration */}
+              <div className="pt-2 border-t border-border/30 flex flex-wrap items-center justify-between gap-2">
+                <div className="text-[11px] font-semibold text-muted-foreground flex flex-wrap items-center gap-1.5">
+                  <Droplets className="h-3 w-3 text-cyan-400" />
+                  <span>Today's Water Consumption:</span>
+                  <span className="font-mono font-bold text-foreground">
+                    {formatWaterVolume(node?.todayUsage ?? 0).formatted}
+                  </span>
+                  {(node?.todayUsage ?? 0) >= 1.0 && (
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      ({Math.round((node?.todayUsage ?? 0) * 1000).toLocaleString()} mL)
+                    </span>
+                  )}
+                  <span className="text-[10px] text-muted-foreground">
+                    (mL under 1.0 L · L when ≥ 1.0 L)
+                  </span>
+                </div>
+                <Button
+                  size="xs"
+                  variant="outline"
+                  className="text-[10px] h-6 px-2.5 border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/10 cursor-pointer gap-1"
+                  onClick={async () => {
+                    await resetTodayUsage(node?.id || "testNode");
+                    toast.success("Today's water usage reset to 0 mL!");
+                  }}
+                >
+                  <RotateCcw className="h-2.5 w-2.5" />
+                  Reset Usage to 0 mL
+                </Button>
               </div>
             </div>
           </div>
@@ -1153,7 +1186,7 @@ function SettingsPage() {
                 </p>
                 <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1.5">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Version: v0.3.0 (Tank &amp; Pump Actuation)
+                    <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Version: v1.0.6 (Dynamic mL/L Usage &amp; Tank Calibration)
                   </span>
                   <span className="flex items-center gap-1.5">
                     <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Size: ~4.4 MB

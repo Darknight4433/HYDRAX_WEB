@@ -15,6 +15,7 @@ import {
   Unlock,
   Waves,
   Wifi,
+  RotateCcw,
   Sparkles,
 } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -24,7 +25,7 @@ import { StatusPill } from "@/components/hydrax/StatusPill";
 import { PageHeader } from "@/components/hydrax/PageHeader";
 import { WaterFlowIcon, ValveIcon } from "@/components/hydrax/WaterFlowIcon";
 import { Button } from "@/components/ui/button";
-import { getPhStatus, getTdsStatus, setValve, useHydrax } from "@/lib/hydrax-store";
+import { getPhStatus, getTdsStatus, resetTodayUsage, setValve, useHydrax } from "@/lib/hydrax-store";
 import { toast } from "sonner";
 import { formatDistanceToNowStrict } from "date-fns";
 import { LiveSyncClock } from "@/components/hydrax/LiveSyncClock";
@@ -50,6 +51,21 @@ export function Overview() {
   const data = useHydrax();
   const node = data.nodes.testNode || Object.values(data.nodes)[0];
   const [toggling, setToggling] = useState(false);
+  const [resettingUsage, setResettingUsage] = useState(false);
+
+  const handleResetUsage = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setResettingUsage(true);
+    try {
+      await resetTodayUsage(node?.id);
+      toast.success("Today's water usage reset to 0 mL");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Reset failed: ${msg}`);
+    } finally {
+      setResettingUsage(false);
+    }
+  };
 
   // Active threshold based on operating mode with null safety
   const thresholds = data.config.thresholds;
@@ -129,7 +145,22 @@ export function Overview() {
       unit: formatWaterVolume(node?.todayUsage ?? 0).unit,
       icon: Droplets,
       accent: "from-accent/30 to-primary/20",
-      caption: "Calculated actual consumption",
+      caption:
+        (node?.todayUsage ?? 0) >= 1.0
+          ? `${Math.round((node?.todayUsage ?? 0) * 1000).toLocaleString()} mL total`
+          : "Increments in mL (L when ≥ 1.0 L)",
+      action: (
+        <button
+          type="button"
+          onClick={handleResetUsage}
+          disabled={resettingUsage}
+          title="Reset Today's Usage counter to 0 mL"
+          className="text-[10px] font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-cyan-500/15 hover:bg-cyan-500/25 transition-colors cursor-pointer"
+        >
+          <RotateCcw className={`h-2.5 w-2.5 ${resettingUsage ? "animate-spin" : ""}`} />
+          <span>Reset</span>
+        </button>
+      ),
     },
     {
       label: "Relay (Valve) State",
@@ -192,8 +223,9 @@ export function Overview() {
             <div className={`absolute inset-0 bg-gradient-to-br ${s.accent} opacity-40`} />
             <div className="relative flex items-start justify-between gap-1">
               <div className="min-w-0 flex-1">
-                <div className="text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground truncate">
-                  {s.label}
+                <div className="text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground flex items-center justify-between gap-1">
+                  <span className="truncate">{s.label}</span>
+                  {"action" in s && s.action}
                 </div>
                 <div className="mt-1.5 sm:mt-2 flex flex-wrap items-baseline gap-1 sm:gap-1.5">
                   <span className="text-xl sm:text-2xl lg:text-3xl font-bold tabular-nums text-foreground">
@@ -610,28 +642,50 @@ export function Overview() {
 
         {/* Consumption Breakdown Card */}
         <GlassCard>
-          <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-sky-400/15 text-sky-400">
-              <Droplets className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">
-                Consumption Tracking
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-sky-400/15 text-sky-400">
+                <Droplets className="h-5 w-5" />
               </div>
-              <div className="text-lg font-semibold">
-                {formatWaterVolume(node?.todayUsage ?? 0).formatted} Today
+              <div>
+                <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Consumption Tracking
+                </div>
+                <div className="text-lg font-semibold">
+                  {formatWaterVolume(node?.todayUsage ?? 0).formatted} Today
+                </div>
               </div>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetUsage}
+              disabled={resettingUsage}
+              className="text-xs gap-1.5 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 cursor-pointer"
+            >
+              <RotateCcw className={`h-3 w-3 ${resettingUsage ? "animate-spin" : ""}`} />
+              Reset to 0 mL
+            </Button>
           </div>
           <div className="mt-4 space-y-3">
-            <div className="rounded-lg bg-black/20 p-3">
-              <div className="text-xs text-muted-foreground">Today's Total</div>
-              <div className="text-lg font-bold text-foreground">
-                {formatWaterVolume(node?.todayUsage ?? 0).value}{" "}
-                <span className="text-xs font-normal text-muted-foreground">
-                  {formatWaterVolume(node?.todayUsage ?? 0).unit}
-                </span>
+            <div className="rounded-lg bg-black/20 p-3 flex items-center justify-between">
+              <div>
+                <div className="text-xs text-muted-foreground">Today's Total</div>
+                <div className="text-lg font-bold text-foreground">
+                  {formatWaterVolume(node?.todayUsage ?? 0).value}{" "}
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {formatWaterVolume(node?.todayUsage ?? 0).unit}
+                  </span>
+                </div>
               </div>
+              {(node?.todayUsage ?? 0) >= 1.0 && (
+                <div className="text-right">
+                  <div className="text-[10px] text-muted-foreground">Equivalent</div>
+                  <div className="text-xs font-mono font-semibold text-cyan-400">
+                    {Math.round((node?.todayUsage ?? 0) * 1000).toLocaleString()} mL
+                  </div>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-lg bg-black/20 p-3">
