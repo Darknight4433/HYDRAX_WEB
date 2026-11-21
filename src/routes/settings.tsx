@@ -12,6 +12,7 @@ import {
   ExternalLink,
   FlaskConical,
   Layers,
+  Lock,
   Minus,
   Palette,
   Plus,
@@ -24,6 +25,7 @@ import {
   Sparkles,
   TrendingDown,
   TrendingUp,
+  Unlock,
   Wifi,
   Zap,
 } from "lucide-react";
@@ -52,11 +54,13 @@ import {
   setPumpMode,
   setPumpState,
   setTankLevelSource,
+  setValve,
   updateInstitution,
   updateNodePh,
   useHydrax,
 } from "@/lib/hydrax-store";
 import { LiveSyncClock } from "@/components/hydrax/LiveSyncClock";
+import { ValveIcon } from "@/components/hydrax/WaterFlowIcon";
 import { format12HourTime, formatTankVolume, formatWaterVolume } from "@/lib/utils";
 import { formatDistanceToNowStrict } from "date-fns";
 import { Capacitor } from "@capacitor/core";
@@ -82,6 +86,23 @@ function SettingsPage() {
   const [notif, setNotif] = useState(true);
   const [saving, setSaving] = useState(false);
   const node = data.nodes.testNode || Object.values(data.nodes)[0];
+  const isOpen = node?.valveState === "open";
+  const [togglingValve, setTogglingValve] = useState(false);
+
+  const handleToggleValve = async () => {
+    if (!node) return;
+    const nextState = isOpen ? "closed" : "open";
+    setTogglingValve(true);
+    try {
+      await setValve(node.id, nextState);
+      toast.success(`Relay command sent: ${nextState.toUpperCase()}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Failed to update relay: ${msg}`);
+    } finally {
+      setTogglingValve(false);
+    }
+  };
 
   const currentPh = node?.phValue ?? node?.ph ?? 7.0;
   const [activePh, setActivePh] = useState<number>(Number(currentPh) || 7.0);
@@ -955,6 +976,62 @@ function SettingsPage() {
           </div>
         </GlassCard>
 
+        {/* Primary Valve Relay (D5) Actuator Control */}
+        <GlassCard className="border-cyan-500/30 bg-gradient-to-br from-cyan-950/20 via-black/40 to-blue-950/20">
+          <SectionTitle icon={isOpen ? Unlock : Lock} label="Primary Valve Control (Relay D5)" />
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-3.5 rounded-xl bg-black/40 border border-border/30">
+              <div className="flex items-center gap-3">
+                <ValveIcon open={isOpen} size={42} />
+                <div>
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                    Supply Line Valve
+                  </div>
+                  <div className="text-base font-bold capitalize text-foreground flex items-center gap-2 mt-0.5">
+                    <span>{isOpen ? "Valve OPEN" : "Valve CLOSED"}</span>
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                        isOpen
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                          : "bg-rose-500/20 text-rose-400 border border-rose-500/30"
+                      }`}
+                    >
+                      {isOpen ? "Energized" : "De-energized"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <Switch
+                checked={isOpen}
+                disabled={togglingValve}
+                onCheckedChange={handleToggleValve}
+              />
+            </div>
+
+            <Button
+              className="w-full h-11 text-sm font-semibold cursor-pointer gap-2"
+              variant={isOpen ? "destructive" : "default"}
+              disabled={togglingValve}
+              onClick={handleToggleValve}
+            >
+              {isOpen ? (
+                <>
+                  <Lock className="h-4 w-4" /> Close Valve (De-energize Relay D5)
+                </>
+              ) : (
+                <>
+                  <Unlock className="h-4 w-4" /> Open Valve (Energize Relay D5)
+                </>
+              )}
+            </Button>
+
+            <div className="text-[11px] text-muted-foreground flex items-center justify-between border-t border-border/30 pt-2">
+              <span>Hardware: Wemos Pin D5 (GPIO 14) &amp; Button D3</span>
+              <span className="font-mono text-cyan-400">/nodes/testNode/valveState</span>
+            </div>
+          </div>
+        </GlassCard>
+
         {/* Institution Info */}
         <GlassCard>
           <SectionTitle icon={Building2} label="Campus & Facility" />
@@ -1013,7 +1090,21 @@ function SettingsPage() {
             />
             <Row
               label="Relay Module Pin"
-              value={<span className="text-sm font-mono text-primary">Pin D5 (GPIO 14)</span>}
+              value={
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-mono text-primary">Pin D5 (GPIO 14)</span>
+                  <Button
+                    size="xs"
+                    variant={isOpen ? "destructive" : "outline"}
+                    className="h-6 text-[10px] px-2 cursor-pointer gap-1"
+                    onClick={handleToggleValve}
+                    disabled={togglingValve}
+                  >
+                    {isOpen ? <Lock className="h-2.5 w-2.5" /> : <Unlock className="h-2.5 w-2.5" />}
+                    <span>{isOpen ? "Close" : "Open"}</span>
+                  </Button>
+                </div>
+              }
             />
             <Row
               label="Push Button Pin"
