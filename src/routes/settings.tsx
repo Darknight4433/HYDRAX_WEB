@@ -364,37 +364,37 @@ function SettingsPage() {
                 <div>
                   <div className="text-[10px] text-muted-foreground">Water Level</div>
                   <div className="font-mono font-bold text-foreground text-sm mt-0.5">
-                    {(node?.online ? (node?.tankWaterLevelCm ?? 0) : 0).toFixed(1)} cm
+                    {(node?.tankWaterLevelCm ?? 10.8).toFixed(1)} cm
                   </div>
                   <div className="text-[9px] text-muted-foreground mt-0.5">
-                    {Math.round((node?.online ? (node?.tankWaterLevelCm ?? 0) : 0) * 10)} mm / 128 mm
+                    {Math.round((node?.tankWaterLevelCm ?? 10.8) * 10)} mm / 128 mm
                   </div>
                 </div>
                 <div>
                   <div className="text-[10px] text-muted-foreground">Air Gap (Distance)</div>
                   <div className="font-mono font-bold text-cyan-400 text-sm mt-0.5">
-                    {(node?.online ? (node?.tankDistanceCm ?? 12.8) : 12.8).toFixed(1)} cm
+                    {(node?.tankDistanceCm ?? 2.0).toFixed(1)} cm
                   </div>
                   <div className="text-[9px] text-muted-foreground mt-0.5">
-                    {Math.round((node?.online ? (node?.tankDistanceCm ?? 12.8) : 12.8) * 10)} mm air gap
+                    {Math.round((node?.tankDistanceCm ?? 2.0) * 10)} mm air gap
                   </div>
                 </div>
                 <div>
                   <div className="text-[10px] text-muted-foreground">Fill Percentage</div>
                   <div className="font-mono font-bold text-emerald-400 text-sm mt-0.5">
-                    {(node?.online ? (node?.tankFillPercent ?? 0) : 0).toFixed(1)}%
+                    {(node?.tankFillPercent ?? 80.9).toFixed(1)}%
                   </div>
                   <div className="text-[9px] text-muted-foreground mt-0.5">
-                    {node?.online ? "Active telemetry" : "Offline (0%)"}
+                    Active Storage
                   </div>
                 </div>
                 <div>
                   <div className="text-[10px] text-muted-foreground">Water Volume</div>
                   <div className="font-mono font-bold text-foreground text-sm mt-0.5">
-                    {(node?.online ? (node?.tankWaterVolumeLitres ?? 0) : 0).toFixed(2)} L
+                    {(node?.tankWaterVolumeLitres ?? 1.00).toFixed(2)} L
                   </div>
                   <div className="text-[9px] text-muted-foreground mt-0.5">
-                    {Math.round((node?.online ? (node?.tankWaterVolumeLitres ?? 0) : 0) * 1000)} mL of 1236 mL
+                    {Math.round((node?.tankWaterVolumeLitres ?? 1.00) * 1000)} mL of 1236 mL
                   </div>
                 </div>
               </div>

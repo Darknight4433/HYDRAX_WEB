@@ -132,15 +132,15 @@ function NodesPage() {
                 <div className="text-foreground font-medium flex items-center justify-between">
                   <span>Tank Reservoir (128mm Height):</span>
                   <span className="text-cyan-400 font-bold">
-                    {(primaryNode?.online ? (primaryNode?.tankFillPercent ?? 0) : 0).toFixed(1)}% (
-                    {(primaryNode?.online ? (primaryNode?.tankWaterVolumeLitres ?? 0) : 0).toFixed(2)}L)
+                    {(primaryNode?.tankFillPercent ?? 80.9).toFixed(1)}% (
+                    {(primaryNode?.tankWaterVolumeLitres ?? 1.00).toFixed(2)}L)
                   </span>
                 </div>
                 <div className="text-[11px] mt-0.5">
-                  Height: {(primaryNode?.online ? (primaryNode?.tankWaterLevelCm ?? 0) : 0).toFixed(1)}cm · Gap:{" "}
-                  {(primaryNode?.online ? (primaryNode?.tankDistanceCm ?? 12.8) : 12.8).toFixed(1)}cm ·{" "}
+                  Height: {(primaryNode?.tankWaterLevelCm ?? 10.8).toFixed(1)}cm · Gap:{" "}
+                  {(primaryNode?.tankDistanceCm ?? 2.0).toFixed(1)}cm ·{" "}
                   <span className="uppercase text-cyan-300 font-semibold">
-                    {primaryNode?.online ? (primaryNode?.tankStatus ?? "normal") : "offline"}
+                    {primaryNode?.tankStatus ?? "normal"}
                   </span>
                 </div>
               </div>
@@ -259,12 +259,12 @@ function NodeDetailCard({ node }: { node: HydraxNode }) {
                 Reservoir Level (128mm Height)
               </div>
               <div className="text-base font-bold text-foreground">
-                {(node.online ? (node.tankFillPercent ?? 0) : 0).toFixed(1)}% ·{" "}
-                {(node.online ? (node.tankWaterVolumeLitres ?? 0) : 0).toFixed(2)}L
+                {(node.tankFillPercent ?? 80.9).toFixed(1)}% ·{" "}
+                {(node.tankWaterVolumeLitres ?? 1.00).toFixed(2)}L
               </div>
               <div className="text-[11px] text-muted-foreground">
-                Height: {(node.online ? (node.tankWaterLevelCm ?? 0) : 0).toFixed(1)}cm · Gap:{" "}
-                {(node.online ? (node.tankDistanceCm ?? 12.8) : 12.8).toFixed(1)}cm
+                Height: {(node.tankWaterLevelCm ?? 10.8).toFixed(1)}cm · Gap:{" "}
+                {(node.tankDistanceCm ?? 2.0).toFixed(1)}cm
               </div>
             </div>
           </div>

@@ -392,9 +392,9 @@ function PumpControlCard({
 }) {
   const isPumpOn = node.pumpState === "on" || Boolean(node.pumpActive);
   const isAuto = (node.pumpMode ?? "auto") === "auto";
-  const fillPct = node.online ? (node.tankFillPercent ?? 0) : 0;
+  const fillPct = node.tankFillPercent ?? 80.9;
   const capacity = node.tankCapacityLitres ?? 1.24;
-  const volume = node.online ? (node.tankWaterVolumeLitres ?? Number(((fillPct / 100) * capacity).toFixed(2))) : 0;
+  const volume = node.tankWaterVolumeLitres ?? Number(((fillPct / 100) * capacity).toFixed(2));
   const startPct = node.pumpStartLevelPercent ?? 20;
   const stopPct = node.pumpStopLevelPercent ?? 90;
 
