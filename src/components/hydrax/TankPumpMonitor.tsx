@@ -170,6 +170,11 @@ export function TankPumpMonitor({
           <StatusPill tone="info">
             Mode: {isAuto ? "AUTO (20%–90%)" : "MANUAL"}
           </StatusPill>
+          <Link to="/settings">
+            <Button variant="ghost" size="xs" className="h-7 text-[11px] gap-1 text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/20">
+              <Sliders className="h-3 w-3" /> Calibrate in Settings
+            </Button>
+          </Link>
         </div>
       </div>
 

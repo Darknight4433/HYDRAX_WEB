@@ -43,6 +43,7 @@ import {
   calculateCorrelatedTds,
   calibrateTankLevel,
   getPhStatus,
+  getTankHeightAtVolume,
   getTankStatusBadge,
   getTdsStatus,
   resetTankCalculatedVolume,
@@ -51,7 +52,6 @@ import {
   setTankLevelSource,
   updateInstitution,
   updateNodePh,
-  updatePumpThresholds,
   useHydrax,
 } from "@/lib/hydrax-store";
 import { LiveSyncClock } from "@/components/hydrax/LiveSyncClock";
@@ -87,15 +87,57 @@ function SettingsPage() {
   const [savingPh, setSavingPh] = useState(false);
   const isInteractingRef = useRef<boolean>(false);
 
-  // Tank & Pump Hysteresis Settings (HYDRAXX v0.3.0)
-  const [startLevel, setStartLevel] = useState(node?.pumpStartLevelPercent ?? 20);
-  const [stopLevel, setStopLevel] = useState(node?.pumpStopLevelPercent ?? 90);
-  const [savingPump, setSavingPump] = useState(false);
+  // Tank Level Drag & Calibration State
+  const currentTankPct = node?.tankFillPercent ?? 80.9;
+  const [activeTankPct, setActiveTankPct] = useState<number>(Number(currentTankPct) || 80.9);
+  const [tankInputText, setTankInputText] = useState<string>((Number(currentTankPct) || 80.9).toFixed(1));
+  const [savingTank, setSavingTank] = useState(false);
+  const isTankInteractingRef = useRef<boolean>(false);
 
   useEffect(() => {
-    if (node?.pumpStartLevelPercent != null) setStartLevel(node.pumpStartLevelPercent);
-    if (node?.pumpStopLevelPercent != null) setStopLevel(node.pumpStopLevelPercent);
-  }, [node?.pumpStartLevelPercent, node?.pumpStopLevelPercent]);
+    if (!isTankInteractingRef.current && node?.tankFillPercent != null) {
+      const val = Number(node.tankFillPercent);
+      if (!isNaN(val)) {
+        setActiveTankPct(val);
+        setTankInputText(val.toFixed(1));
+      }
+    }
+  }, [node?.tankFillPercent]);
+
+  const commitTankChange = async (pct: number) => {
+    const clamped = Math.max(0, Math.min(100, Math.round(pct * 10) / 10));
+    setActiveTankPct(clamped);
+    setTankInputText(clamped.toFixed(1));
+    setSavingTank(true);
+    try {
+      await calibrateTankLevel(node?.id || "testNode", clamped);
+      toast.success(`Tank level calibrated to ${clamped.toFixed(1)}%!`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Failed to calibrate tank: ${msg}`);
+    } finally {
+      setSavingTank(false);
+    }
+  };
+
+  const stepTank = (delta: number) => {
+    const next = Math.max(0, Math.min(100, Math.round((activeTankPct + delta) * 10) / 10));
+    commitTankChange(next);
+  };
+
+  const handleDirectTankSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const parsed = parseFloat(tankInputText);
+    if (!isNaN(parsed)) {
+      commitTankChange(parsed);
+    }
+  };
+
+  const tankCapacity = node?.tankCapacityLitres || 1.24;
+  const previewTankVol = Number(((activeTankPct / 100) * tankCapacity).toFixed(2));
+  const previewWaterCm = getTankHeightAtVolume(previewTankVol);
+  const previewDistanceCm = Number((12.8 - previewWaterCm).toFixed(1));
+  const previewWaterMm = Math.round(previewWaterCm * 10);
 
   useEffect(() => {
     if (!isInteractingRef.current && (node?.phValue != null || node?.ph != null)) {
@@ -260,74 +302,168 @@ function SettingsPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
-            {/* Left: Hysteresis Threshold Configuration */}
-            <div className="rounded-2xl border border-border/40 bg-black/30 p-4 space-y-4">
+            {/* Left: Interactive Tank Fill Level Drag Slider & Calibration */}
+            <div className="rounded-2xl border border-cyan-500/40 bg-black/40 p-4 space-y-4">
               <div className="flex items-center justify-between">
-                <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-2">
-                  <Zap className="h-3.5 w-3.5 text-cyan-400" />
-                  <span>Pump Hysteresis Thresholds</span>
+                <div className="text-xs uppercase tracking-wider text-cyan-300 font-semibold flex items-center gap-2">
+                  <Droplets className="h-4 w-4 text-cyan-400" />
+                  <span>Manual Tank Level Calibration</span>
                 </div>
                 <StatusPill tone="info">
-                  {node?.pumpMode === "manual" ? "Manual Override" : "Auto Hysteresis"}
+                  {activeTankPct.toFixed(1)}% ({previewTankVol.toFixed(2)}L)
                 </StatusPill>
               </div>
 
-              <div className="space-y-3">
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-muted-foreground">Pump Start Level (Refill ON):</span>
-                    <span className="font-mono font-bold text-amber-400">{startLevel}%</span>
-                  </div>
-                  <Slider
-                    min={5}
-                    max={40}
-                    step={1}
-                    value={[startLevel]}
-                    onValueChange={(val) => setStartLevel(val[0])}
-                  />
-                  <span className="text-[10px] text-muted-foreground">
-                    When water level falls below this value, the pump activates automatically.
-                  </span>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-muted-foreground">Pump Stop Level (Overflow Cutoff):</span>
-                    <span className="font-mono font-bold text-cyan-400">{stopLevel}%</span>
-                  </div>
-                  <Slider
-                    min={60}
-                    max={98}
-                    step={1}
-                    value={[stopLevel]}
-                    onValueChange={(val) => setStopLevel(val[0])}
-                  />
-                  <span className="text-[10px] text-muted-foreground">
-                    When water level reaches this cutoff, the pump deactivates immediately.
-                  </span>
-                </div>
-
-                <Button
-                  size="sm"
-                  className="w-full mt-2"
-                  disabled={savingPump}
-                  onClick={async () => {
-                    setSavingPump(true);
-                    try {
-                      await updatePumpThresholds(node?.id || "testNode", startLevel, stopLevel);
-                      toast.success(
-                        `Hysteresis thresholds saved to Firebase: Start at ${startLevel}%, Stop at ${stopLevel}%!`,
-                      );
-                    } catch (err: unknown) {
-                      const msg = err instanceof Error ? err.message : String(err);
-                      toast.error(`Save failed: ${msg}`);
-                    } finally {
-                      setSavingPump(false);
-                    }
+              {/* Radix Drag Slider Track */}
+              <div className="pt-5 pb-1">
+                <SliderPrimitive.Root
+                  min={0}
+                  max={100}
+                  step={0.5}
+                  value={[activeTankPct]}
+                  onValueChange={([val]) => {
+                    isTankInteractingRef.current = true;
+                    setActiveTankPct(val);
+                    setTankInputText(val.toFixed(1));
                   }}
+                  onValueCommit={([val]) => {
+                    isTankInteractingRef.current = false;
+                    commitTankChange(val);
+                  }}
+                  className="relative flex w-full touch-none select-none items-center h-12 cursor-pointer"
+                  aria-label="Tank Fill Level Slider"
                 >
-                  <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Save Hysteresis Thresholds
-                </Button>
+                  <SliderPrimitive.Track className="relative h-11 w-full grow overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-cyan-950 via-cyan-700 to-blue-500 shadow-inner border border-cyan-500/30 flex items-center">
+                    <div className="w-full flex justify-between px-3 text-[10px] sm:text-[11px] font-extrabold text-white/90 select-none pointer-events-none">
+                      <span>0%</span>
+                      <span>25%</span>
+                      <span className="bg-cyan-900/80 px-2 py-0.5 rounded text-cyan-200 font-bold border border-cyan-400/30">
+                        50% Half
+                      </span>
+                      <span>75%</span>
+                      <span>100% Full</span>
+                    </div>
+                  </SliderPrimitive.Track>
+
+                  {/* Thumb with Floating Pill */}
+                  <SliderPrimitive.Thumb
+                    className="block h-10 w-10 rounded-full border-2 border-cyan-300 bg-slate-950 shadow-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 cursor-grab active:cursor-grabbing hover:scale-105 active:scale-110 transition-transform relative flex items-center justify-center"
+                    aria-label="Tank Level Thumb"
+                  >
+                    <div className="h-4 w-4 rounded-full bg-cyan-400 shadow-cyan-400/80 shadow-md animate-pulse" />
+
+                    <div className="absolute -top-9 px-2.5 py-0.5 rounded-md text-[10px] font-bold font-mono shadow-xl whitespace-nowrap border border-cyan-400/50 bg-cyan-950/95 text-cyan-200 pointer-events-none">
+                      {activeTankPct.toFixed(1)}% · {previewTankVol.toFixed(2)}L ({previewWaterMm}mm)
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-cyan-950/95" />
+                    </div>
+                  </SliderPrimitive.Thumb>
+                </SliderPrimitive.Root>
+              </div>
+
+              {/* Quick Presets */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <span className="text-[11px] text-muted-foreground font-semibold mr-1">
+                  Presets:
+                </span>
+                {[
+                  { label: "100% Full", val: 100 },
+                  { label: "85% Normal", val: 85 },
+                  { label: "70% Storage", val: 70 },
+                  { label: "50% Half", val: 50 },
+                  { label: "25% Low", val: 25 },
+                  { label: "0% Empty", val: 0 },
+                ].map((preset) => (
+                  <button
+                    key={preset.val}
+                    type="button"
+                    onClick={() => commitTankChange(preset.val)}
+                    className={`text-xs px-2.5 py-1 rounded-lg border bg-black/40 text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/10 transition-all active:scale-95 ${
+                      Math.abs(activeTankPct - preset.val) < 0.5 ? "ring-2 ring-cyan-400 bg-cyan-500/20 font-bold" : ""
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Stepper Buttons & Exact Numeric Input */}
+              <div className="pt-2 border-t border-border/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] uppercase tracking-wider font-semibold text-cyan-400">
+                    Step:
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => stepTank(-10)}
+                      className="h-9 px-2.5 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 font-bold text-xs text-foreground transition-all border border-border/40"
+                    >
+                      -10%
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => stepTank(-1)}
+                      className="h-9 px-2.5 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 font-bold text-xs text-foreground transition-all border border-border/40"
+                    >
+                      <Minus className="h-3 w-3 mr-0.5" /> 1%
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => stepTank(1)}
+                      className="h-9 px-2.5 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 font-bold text-xs text-foreground transition-all border border-border/40"
+                    >
+                      <Plus className="h-3 w-3 mr-0.5" /> 1%
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => stepTank(10)}
+                      className="h-9 px-2.5 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 font-bold text-xs text-foreground transition-all border border-border/40"
+                    >
+                      +10%
+                    </button>
+                  </div>
+                </div>
+
+                <form onSubmit={handleDirectTankSubmit} className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    Exact %:
+                  </span>
+                  <Input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    max="100"
+                    value={tankInputText}
+                    onChange={(e) => {
+                      setTankInputText(e.target.value);
+                      const val = parseFloat(e.target.value);
+                      if (!isNaN(val) && val >= 0 && val <= 100) {
+                        setActiveTankPct(val);
+                      }
+                    }}
+                    onBlur={() => handleDirectTankSubmit()}
+                    className="h-9 w-20 text-center font-mono font-bold text-sm bg-black/60 border-border/60"
+                  />
+                  <Button
+                    type="submit"
+                    size="sm"
+                    variant="secondary"
+                    className="h-9 text-xs font-semibold px-3"
+                    disabled={savingTank}
+                  >
+                    Set Level
+                  </Button>
+                </form>
+              </div>
+
+              {/* Realtime dynamic preview */}
+              <div className="text-xs text-muted-foreground flex items-center justify-between pt-1">
+                <span>
+                  Water Column: <strong className="text-foreground font-mono">{previewWaterCm.toFixed(1)} cm</strong> ({previewWaterMm} mm / 128 mm)
+                </span>
+                <span>
+                  Air Gap: <strong className="text-cyan-400 font-mono">{previewDistanceCm.toFixed(1)} cm</strong>
+                </span>
               </div>
             </div>
 

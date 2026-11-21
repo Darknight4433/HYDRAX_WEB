@@ -293,7 +293,7 @@ function startHeartbeatMonitor() {
       // Every 1 second (interval = 1000ms):
       const deltaLitres = (netLpm / 60.0) * 1.0;
       const prevVol =
-        typeof primary.tankWaterVolumeLitres === "number" && primary.tankWaterVolumeLitres > 0
+        typeof primary.tankWaterVolumeLitres === "number" && primary.tankWaterVolumeLitres >= 0
           ? primary.tankWaterVolumeLitres
           : (primary.tankStartingVolumeLitres || 1.00);
       const nextVol = Math.max(0, Math.min(capacity, Number((prevVol + deltaLitres).toFixed(4))));
@@ -310,7 +310,7 @@ function startHeartbeatMonitor() {
       else if (nextFillPct < 25) status = "low";
       else if (nextFillPct >= 95) status = "full";
 
-      // Auto hysteresis pump trigger
+      // Automatic pump hysteresis refills (<20% refill ON, >90% cutoff)
       let nextPumpState = primary.pumpState || "off";
       let nextPumpActive = Boolean(primary.pumpActive);
       if (primary.pumpMode !== "manual") {
@@ -953,8 +953,9 @@ export async function updatePumpThresholds(
  * Evaluates automatic pump control hysteresis and updates Firebase RTDB.
  */
 export async function calibrateTankLevel(nodeId: string, fillPercent: number): Promise<void> {
+  const targetId = nodeId || "testNode";
   const clampedPct = Math.max(0, Math.min(100, Math.round(fillPercent * 10) / 10));
-  const n = snapshot.nodes[nodeId];
+  const n = snapshot.nodes[targetId] || snapshot.nodes.testNode;
   if (!n) return;
 
   const capacity = n.tankCapacityLitres || TANK_TOTAL_CAPACITY_LITRES;
@@ -984,8 +985,9 @@ export async function calibrateTankLevel(nodeId: string, fillPercent: number): P
   }
 
   const now = Date.now();
-  snapshot.nodes[nodeId] = {
+  snapshot.nodes[targetId] = {
     ...n,
+    tankStartingVolumeLitres: volume,
     tankFillPercent: clampedPct,
     tankWaterVolumeLitres: volume,
     tankWaterLevelCm: waterHeightCm,
@@ -1001,7 +1003,8 @@ export async function calibrateTankLevel(nodeId: string, fillPercent: number): P
   const db = getDb();
   if (db) {
     try {
-      await update(ref(db, `/nodes/${nodeId}`), {
+      const payload = {
+        tankStartingVolumeLitres: volume,
         tankFillPercent: clampedPct,
         tankWaterVolumeLitres: volume,
         tankWaterLevelCm: waterHeightCm,
@@ -1011,7 +1014,9 @@ export async function calibrateTankLevel(nodeId: string, fillPercent: number): P
         pumpState: nextPumpState,
         pumpActive: nextPumpActive,
         pumpLastUpdate: now,
-      });
+      };
+      await update(ref(db, `/nodes/${targetId}`), payload);
+      await update(ref(db, `/hydrax/nodes/${targetId}`), payload);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("Firebase calibrateTankLevel error:", err);
