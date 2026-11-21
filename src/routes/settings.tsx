@@ -209,10 +209,10 @@ function SettingsPage() {
               </div>
               <div>
                 <h3 className="text-lg font-bold">
-                  Autonomous Reservoir Monitoring &amp; Automatic Water Level
+                  Autonomous Reservoir Monitoring &amp; Flow Level Depletion
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Continuous flow-rate depletion tracking (-flowRate L/min) &amp; automated pump hysteresis refills.
+                  Continuous flow-rate depletion tracking (-flowRate L/min when flow occurs). Pump remains OFF.
                 </p>
               </div>
             </div>
@@ -232,13 +232,13 @@ function SettingsPage() {
                   <span>Automated Dynamic Reservoir Hydrodynamics</span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Water level depletes automatically in real time as water flows through the supply line (-flowRate L/min), with automated hysteresis pump refills.
+                  Water level depletes automatically in real time ONLY when water flows through the supply line (-flowRate L/min). When there is no flow, the water level remains static at your calibrated value.
                 </p>
               </div>
 
               <div className="flex items-center gap-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 px-3 py-1.5 text-xs text-cyan-300 font-mono">
                 <TrendingDown className="h-4 w-4" />
-                <span>Auto-Level Active</span>
+                <span>Flow Depletion Active</span>
               </div>
             </div>
 
@@ -249,7 +249,7 @@ function SettingsPage() {
                   <span className="font-semibold text-foreground">
                     Active Water Outflow:{" "}
                     <strong className="text-cyan-300 font-mono">
-                      {(node?.flowRate ?? (node?.valveState === "open" ? 5.2 : 0)).toFixed(2)} L/min
+                      {(node?.flowRate ?? 0).toFixed(2)} L/min
                     </strong>
                   </span>
                 </div>
@@ -257,18 +257,18 @@ function SettingsPage() {
                 <div className="flex items-center gap-2 text-[11px] font-mono">
                   <span className="text-muted-foreground">Water Column Drop Rate:</span>
                   <span className="font-bold text-rose-400">
-                    -{((node?.flowRate ?? (node?.valveState === "open" ? 5.2 : 0)) / 5.0).toFixed(2)} cm/min
+                    -{((node?.flowRate ?? 0) / 5.0).toFixed(2)} cm/min
                   </span>
                 </div>
               </div>
 
               <div className="text-muted-foreground leading-relaxed">
-                Water level decreases automatically every second when water flows through Pin D7 or when the valve is open.
+                Water level decreases automatically every second when water flows through Pin D7.
                 Current decrease rate:{" "}
                 <strong className="text-rose-400 font-mono">
-                  -{(node?.flowRate ?? (node?.valveState === "open" ? 5.2 : 0)).toFixed(2)} L/min
+                  -{(node?.flowRate ?? 0).toFixed(2)} L/min
                 </strong>{" "}
-                (<strong className="text-rose-300 font-mono">-{((node?.flowRate ?? (node?.valveState === "open" ? 5.2 : 0)) / 5.0).toFixed(2)} cm/min</strong> water level reduction).
+                (<strong className="text-rose-300 font-mono">-{((node?.flowRate ?? 0) / 5.0).toFixed(2)} cm/min</strong> water level reduction).
               </div>
 
               {/* Volume Baseline Presets */}

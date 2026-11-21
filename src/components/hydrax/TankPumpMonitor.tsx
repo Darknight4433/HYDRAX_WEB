@@ -142,14 +142,14 @@ export function TankPumpMonitor({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-base sm:text-lg font-bold text-foreground">
-                Main Reservoir &amp; Automatic Refill Pump
+                Main Reservoir Monitoring
               </h3>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusInfo.badgeClass}`}>
                 {statusInfo.label}
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Automated Dynamic Level Depletion (-flowRate L/min) &amp; Automated Hysteresis Pump Refill.
+              Flow-rate depletion tracking (-flowRate L/min when flow occurs). Pump remains OFF.
             </p>
           </div>
         </div>
@@ -360,7 +360,7 @@ export function TankPumpMonitor({
                     ? `Level decreasing at -${depletionRateLpm.toFixed(2)} L/min (-${levelDropRateCmMin} cm/min) as Pin D7 flow rate rises.`
                     : isPumpActive
                       ? `Refill active at +${(15.0 - flowRate).toFixed(2)} L/min via Pump Relay D2.`
-                      : "No active outflow or inflow; reservoir level is static."}
+                      : "No active outflow detected (flow is 0 L/min); reservoir level remains static at calibrated value. Pump is OFF."}
                 </span>
               </div>
             </div>

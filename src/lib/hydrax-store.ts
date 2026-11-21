@@ -154,7 +154,7 @@ function initialTestNode(): HydraxNode {
     tankLastUpdate: 0,
     // Automated Pump Actuator
     pumpState: "off",
-    pumpMode: "auto",
+    pumpMode: "manual",
     pumpActive: false,
     pumpLastUpdate: 0,
     pumpStartLevelPercent: 20,
@@ -279,18 +279,19 @@ function startHeartbeatMonitor() {
 
     // Dynamic Hydrodynamic Water Level Depletion Calculation
     if (primary) {
-      // The tank has water even when there is no flow. Outflow depletes the stored water.
+      // Outflow depletes stored water ONLY when actual flow is detected (flowRate > 0)
       const physicalFlow = Number(primary.flowRate || 0);
-      const isValveOpen = primary.valveState === "open" || Boolean((primary as unknown as { relay?: boolean }).relay);
-      const effectiveFlow = physicalFlow > 0 ? physicalFlow : (isValveOpen ? 0.35 : 0);
+      const effectiveFlow = physicalFlow > 0 ? physicalFlow : 0;
 
-      const isPumpOn = primary.pumpState === "on" || Boolean(primary.pumpActive);
-      const pumpRate = isPumpOn ? 0.60 : 0; // Benchtop refill pump delivers ~0.60 L/min
+      // Pump stays OFF unless explicitly controlled
+      const isPumpOn = primary.pumpState === "on" && Boolean(primary.pumpActive);
+      const pumpRate = isPumpOn ? 0.60 : 0;
       const netLpm = pumpRate - effectiveFlow;
       const depletionLpm = effectiveFlow;
       const capacity = primary.tankCapacityLitres || TANK_TOTAL_CAPACITY_LITRES;
 
       // Every 1 second (interval = 1000ms):
+      // Only changes volume if there is actual flow or active pump
       const deltaLitres = (netLpm / 60.0) * 1.0;
       const prevVol =
         typeof primary.tankWaterVolumeLitres === "number" && primary.tankWaterVolumeLitres >= 0
@@ -310,20 +311,8 @@ function startHeartbeatMonitor() {
       else if (nextFillPct < 25) status = "low";
       else if (nextFillPct >= 95) status = "full";
 
-      // Automatic pump hysteresis refills (<20% refill ON, >90% cutoff)
-      let nextPumpState = primary.pumpState || "off";
-      let nextPumpActive = Boolean(primary.pumpActive);
-      if (primary.pumpMode !== "manual") {
-        if (nextFillPct <= (primary.pumpStartLevelPercent ?? 20) && !nextPumpActive) {
-          nextPumpState = "on";
-          nextPumpActive = true;
-          setPumpState("testNode", "on").catch(() => {});
-        } else if (nextFillPct >= (primary.pumpStopLevelPercent ?? 90) && nextPumpActive) {
-          nextPumpState = "off";
-          nextPumpActive = false;
-          setPumpState("testNode", "off").catch(() => {});
-        }
-      }
+      const nextPumpState = isPumpOn ? "on" : "off";
+      const nextPumpActive = isPumpOn;
 
       if (
         Math.abs(nextVol - prevVol) > 0.0001 ||
@@ -968,21 +957,9 @@ export async function calibrateTankLevel(nodeId: string, fillPercent: number): P
   else if (clampedPct < 25) status = "low";
   else if (clampedPct >= 95) status = "full";
 
-  // Check pump hysteresis if in auto mode
-  let nextPumpState = n.pumpState || "off";
-  let nextPumpActive = Boolean(n.pumpActive);
-  const startPct = n.pumpStartLevelPercent ?? 20;
-  const stopPct = n.pumpStopLevelPercent ?? 90;
-
-  if (n.pumpMode !== "manual") {
-    if (clampedPct <= startPct) {
-      nextPumpState = "on";
-      nextPumpActive = true;
-    } else if (clampedPct >= stopPct) {
-      nextPumpState = "off";
-      nextPumpActive = false;
-    }
-  }
+  // Pump stays OFF
+  const nextPumpState = "off";
+  const nextPumpActive = false;
 
   const now = Date.now();
   snapshot.nodes[targetId] = {
