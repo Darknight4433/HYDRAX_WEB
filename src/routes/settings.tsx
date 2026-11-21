@@ -113,7 +113,6 @@ function SettingsPage() {
     setSavingTank(true);
     try {
       await calibrateTankLevel(node?.id || "testNode", clamped);
-      toast.success(`Tank level calibrated to ${clamped.toFixed(1)}%!`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(`Failed to calibrate tank: ${msg}`);
@@ -292,7 +291,6 @@ function SettingsPage() {
                       className="text-[10px] h-6 px-2 border border-border/40 hover:bg-white/10"
                       onClick={async () => {
                         await resetTankCalculatedVolume(node?.id || "testNode", preset.vol);
-                        toast.success(`Tank volume calibrated to ${preset.vol} Litres!`);
                       }}
                     >
                       {preset.label}
