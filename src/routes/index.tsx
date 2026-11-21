@@ -156,7 +156,7 @@ export function Overview() {
         title="HYDRAXX Smart Water Monitor"
         description="Real-time water flow telemetry, bi-directional relay control, and dual pH & TDS water quality sensing via Firebase."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <>
             <LiveSyncClock variant="pill" lastSyncTimestamp={isOnline ? node?.lastUpdate : undefined} />
             <StatusPill tone={isOnline ? "success" : "danger"} pulse={isOnline}>
               Wemos D1 Mini {isOnline ? "Connected" : "Offline"}
@@ -181,7 +181,7 @@ export function Overview() {
                 Push Button D3 Active
               </StatusPill>
             )}
-          </div>
+          </>
         }
       />
 

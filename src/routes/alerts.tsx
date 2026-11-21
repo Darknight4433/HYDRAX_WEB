@@ -44,7 +44,7 @@ function AlertsPage() {
         title="Water system alerts"
         description="Leaks, valve failures, offline nodes and AI predictions. Resolve alerts once addressed on-site."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <>
             <LiveSyncClock variant="pill" lastSyncTimestamp={data.nodes.testNode?.lastUpdate} />
             <div className="flex items-center gap-1 rounded-full border border-border/50 bg-white/5 p-1">
               <Filter className="ml-2 h-3.5 w-3.5 text-muted-foreground" />
@@ -76,7 +76,7 @@ function AlertsPage() {
             >
               Export CSV
             </Button>
-          </div>
+          </>
         }
       />
 

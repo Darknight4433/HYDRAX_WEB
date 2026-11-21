@@ -163,12 +163,12 @@ function SettingsPage() {
         title="System Settings"
         description="Manage campus institution parameters, Wemos D1 Mini hardware mapping, and Firebase Realtime Database connectivity."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <>
             <LiveSyncClock variant="pill" lastSyncTimestamp={node?.online ? node?.lastUpdate : undefined} />
             <StatusPill tone={node?.online ? "success" : "danger"} pulse={node?.online}>
               {node?.online ? "Wemos Online" : "Wemos Standby"}
             </StatusPill>
-          </div>
+          </>
         }
       />
 

@@ -37,7 +37,7 @@ function NodesPage() {
         title="Hardware Node Monitoring"
         description="Live telemetry stream from Wemos D1 Mini (/nodes/testNode). Reports flow sensor, relay state, Wi-Fi RSSI and volume."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <>
             <LiveSyncClock variant="pill" lastSyncTimestamp={primaryNode?.lastUpdate} />
             <StatusPill
               tone={primaryNode?.online ? "success" : "danger"}
@@ -45,7 +45,7 @@ function NodesPage() {
             >
               {primaryNode?.online ? "Online & Reporting" : "Offline / Stale"}
             </StatusPill>
-          </div>
+          </>
         }
       />
 
@@ -148,9 +148,8 @@ function NodesPage() {
                 <div className="text-foreground font-medium flex items-center justify-between">
                   <span>Refill Pump (Pin D2):</span>
                   <span
-                    className={`font-bold uppercase ${
-                      primaryNode?.pumpState === "on" ? "text-emerald-400" : "text-muted-foreground"
-                    }`}
+                    className={`font-bold uppercase ${primaryNode?.pumpState === "on" ? "text-emerald-400" : "text-muted-foreground"
+                      }`}
                   >
                     {primaryNode?.pumpState === "on" ? "Active (Running)" : "Idle (Standby)"}
                   </span>
@@ -275,9 +274,8 @@ function NodeDetailCard({ node }: { node: HydraxNode }) {
               </div>
               <div className="text-base font-bold uppercase text-foreground flex items-center gap-2">
                 <span
-                  className={`h-2.5 w-2.5 rounded-full ${
-                    node.pumpState === "on" ? "bg-emerald-400 animate-pulse" : "bg-muted-foreground/60"
-                  }`}
+                  className={`h-2.5 w-2.5 rounded-full ${node.pumpState === "on" ? "bg-emerald-400 animate-pulse" : "bg-muted-foreground/60"
+                    }`}
                 />
                 {node.pumpState === "on" ? "RUNNING" : "STANDBY"}
               </div>

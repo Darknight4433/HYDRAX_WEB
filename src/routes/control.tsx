@@ -75,13 +75,13 @@ function ControlPage() {
         title="Valve & Relay Control Center"
         description="Direct remote control of the Wemos D1 Mini relay module on pin D5. The physical push button on pin D3 and this interface control the same state."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <>
             <LiveSyncClock variant="pill" lastSyncTimestamp={node?.lastUpdate} />
             <StatusPill tone={node?.online ? "success" : "danger"} pulse={node?.online}>
               Wemos {node?.online ? "Online" : "Offline"}
             </StatusPill>
             <StatusPill tone="warning">Requires confirmation</StatusPill>
-          </div>
+          </>
         }
       />
 

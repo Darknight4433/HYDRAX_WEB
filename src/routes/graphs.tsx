@@ -72,7 +72,7 @@ export function GraphsPage() {
         title="Water Usage Graphs"
         description="Visualise live flow rate from Wemos D1 Mini pin D7 and periodic consumption totals."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <>
             <LiveSyncClock variant="pill" lastSyncTimestamp={node?.lastUpdate} />
             <Button
               variant="secondary"
@@ -121,7 +121,7 @@ export function GraphsPage() {
             >
               <Download className="mr-2 h-4 w-4" /> Export PDF
             </Button>
-          </div>
+          </>
         }
       />
 

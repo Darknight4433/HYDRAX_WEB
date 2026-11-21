@@ -247,7 +247,7 @@ export function ThresholdsPage() {
         title="Threshold Management"
         description="Configure flow ceilings stored at /config/thresholds. The Wemos D1 Mini polls this path every 15 seconds and trips the relay (D5) if flow (D7) exceeds the active ceiling."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <>
             <LiveSyncClock variant="pill" lastSyncTimestamp={node?.lastUpdate} />
             <StatusPill
               tone={
@@ -289,7 +289,7 @@ export function ThresholdsPage() {
                 </>
               )}
             </Button>
-          </div>
+          </>
         }
       />
 

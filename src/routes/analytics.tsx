@@ -63,7 +63,7 @@ export function AnalyticsPage() {
         title="Water Analytics & Insights"
         description="Distinguishes measured field data on Wemos D1 Mini from cloud forecasts and scheduled aggregation."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <>
             <LiveSyncClock variant="pill" lastSyncTimestamp={node?.lastUpdate} />
             <StatusPill tone={hasForecast ? "info" : "muted"}>
               <Brain className="mr-1.5 h-3.5 w-3.5" />
@@ -72,7 +72,7 @@ export function AnalyticsPage() {
             <StatusPill tone={node?.online ? "success" : "danger"} pulse={node?.online}>
               {node?.online ? "Wemos Online" : "Wemos Offline"}
             </StatusPill>
-          </div>
+          </>
         }
       />
 
